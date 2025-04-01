@@ -65,20 +65,38 @@ class NetworkThread(QThread):
         super().__init__()
         self.config = config
         self._running = True
+        self._last_data = []  # Store the last data to avoid unnecessary updates
         
     def run(self):
         while self._running:
             try:
                 # Read lap times from CSV
                 lap_times = self.read_lap_times()
-                self.leaderboard_updated.emit(lap_times)
-                self.server_status_updated.emit("Local leaderboard loaded")
+                
+                # Only emit update signal if the data has actually changed
+                if self._data_changed(lap_times):
+                    self._last_data = lap_times.copy()  # Store a copy of current data
+                    self.leaderboard_updated.emit(lap_times)
+                    self.server_status_updated.emit("Local leaderboard loaded")
             except Exception as e:
                 self.server_status_updated.emit(f"Error reading leaderboard: {str(e)}")
             
             # Sleep for the configured interval
             self.msleep(self.config.get('refresh_interval', 5) * 1000)
+    
+    def _data_changed(self, new_data):
+        """Check if the data has meaningfully changed to avoid unnecessary updates"""
+        if len(new_data) != len(self._last_data):
+            return True
             
+        for i, (old_entry, new_entry) in enumerate(zip(self._last_data, new_data)):
+            # Check if position, driver or lap time changed
+            if (old_entry.get('driver_name') != new_entry.get('driver_name') or
+                abs(old_entry.get('lap_time', 0) - new_entry.get('lap_time', 0)) > 0.001):
+                return True
+                
+        return False
+    
     def read_lap_times(self):
         """Read and sort lap times from CSV file, keeping only fastest lap per driver"""
         lap_times = {}  # Dictionary to store fastest lap per driver
@@ -131,7 +149,10 @@ class LeaderboardWindow(QWidget):
         self.is_fullscreen = True
         self.dragging = False
         self.drag_position = None
-        self.horizontal_offset = self.config.get('horizontal_offset', 0)  # Load saved offset
+        self.horizontal_offset = self.config.get('horizontal_offset', 0)  # Load saved horizontal offset
+        self.vertical_offset = self.config.get('vertical_offset', 0)  # Load saved vertical offset
+        self.vertical_spacing = self.config.get('vertical_spacing', 4)  # Get spacing between entries
+        self.row_height_padding = self.config.get('row_height_padding', 16)  # Get internal row height padding
         self.setup_ui()
         self.hide()
         
@@ -188,6 +209,45 @@ class LeaderboardWindow(QWidget):
         self.right_button.clicked.connect(self.move_right)
         self.right_button.setFixedSize(40, 40)
         
+        # Add up and down buttons for vertical positioning
+        self.up_button = QPushButton("▲", self)
+        self.up_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(40, 40, 40, 160);
+                color: white;
+                border: none;
+                border-radius: 20px;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(60, 60, 60, 200);
+            }
+        """)
+        self.up_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.up_button.clicked.connect(self.move_up)
+        self.up_button.setFixedSize(40, 40)
+        
+        self.down_button = QPushButton("▼", self)
+        self.down_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(40, 40, 40, 160);
+                color: white;
+                border: none;
+                border-radius: 20px;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(60, 60, 60, 200);
+            }
+        """)
+        self.down_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.down_button.clicked.connect(self.move_down)
+        self.down_button.setFixedSize(40, 40)
+        
         # Add mode toggle button
         self.mode_button = QPushButton("🗗", self)
         self.mode_button.setStyleSheet("""
@@ -230,6 +290,8 @@ class LeaderboardWindow(QWidget):
         title_bar_layout.addStretch()
         title_bar_layout.addWidget(self.left_button)
         title_bar_layout.addWidget(self.right_button)
+        title_bar_layout.addWidget(self.up_button)
+        title_bar_layout.addWidget(self.down_button)
         title_bar_layout.addWidget(self.mode_button)
         title_bar_layout.addWidget(self.close_button)
         
@@ -292,7 +354,7 @@ class LeaderboardWindow(QWidget):
         """)
         self.entries_layout = QVBoxLayout(self.entries_widget)
         self.entries_layout.setContentsMargins(20, 6, 20, 6)
-        self.entries_layout.setSpacing(4)
+        self.entries_layout.setSpacing(self.vertical_spacing)  # Use configured vertical spacing
         panel_layout.addWidget(self.entries_widget)
         
         layout.addWidget(self.leaderboard_panel, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -325,19 +387,25 @@ class LeaderboardWindow(QWidget):
                     padding: 8px;
                 }
             """)
-            self.showFullScreen()
-            screen = QApplication.primaryScreen().geometry()
-            self.mode_button.setText("🗗")
-            self.title_bar.move(screen.width() - 200, 20)  # Adjusted for extra buttons
             
-            # Center the leaderboard horizontally with applied offset
+            # Show fullscreen
+            self.showFullScreen()
+            
+            # Get actual screen dimensions
+            screen = QApplication.primaryScreen().geometry()
+            
+            # Position title bar controls at the top right of the actual screen
+            self.mode_button.setText("🗗")
+            self.title_bar.move(screen.width() - 200, 20)
+            
+            # Position the leaderboard panel in the center
             self.center_leaderboard_with_offset()
             
             # Explicitly refresh background when going into fullscreen
             if hasattr(self, 'background_label') and self.config.get('background_image'):
-                self.set_background(self.config['background_image'])
+                QTimer.singleShot(50, lambda: self.set_background(self.config['background_image']))
         else:
-            # Restore borders in windowed mode
+            # Regular windowed mode code remains the same
             self.header_widget.setStyleSheet("""
                 QWidget {
                     background-color: rgba(40, 40, 40, 220);
@@ -404,94 +472,187 @@ class LeaderboardWindow(QWidget):
     
     def set_background(self, image_path):
         """Set the background image efficiently"""
-        if not image_path or not os.path.exists(image_path):
-            return
+        try:
+            if not image_path or not os.path.exists(image_path):
+                logger.warning(f"Background image not found: {image_path}")
+                return
             
-        # Create background label if it doesn't exist
-        if not hasattr(self, 'background_label'):
-            self.background_label = QLabel(self)
-            self.background_label.lower()  # Keep it behind all other widgets
+            # Create background label if it doesn't exist
+            if not hasattr(self, 'background_label'):
+                self.background_label = QLabel(self)
+                self.background_label.lower()  # Keep it behind all other widgets
             
-        # Load and scale image
-        image = QImage(image_path)
-        if not image.isNull():
-            screen_size = self.size()
+            # Load and scale image
+            image = QImage(image_path)
+            if image.isNull():
+                logger.warning(f"Failed to load background image: {image_path}")
+                return
             
-            # Use the selected aspect ratio
-            if self.config.get('use_tall_aspect', False):
-                # 1920x1536 aspect ratio
-                target_height = screen_size.width() * (1536/1920)
-            elif self.config.get('use_1344_aspect', False):
-                # 1920x1344 aspect ratio
-                target_height = screen_size.width() * (1344/1920)
+            if self.is_fullscreen:
+                try:
+                    # Get actual screen size instead of hardcoded values
+                    screen = QApplication.primaryScreen().geometry()
+                    target_width = screen.width()
+                    target_height = screen.height()
+                    
+                    # Choose aspect ratio mode based on fill_screen setting
+                    aspect_mode = Qt.AspectRatioMode.IgnoreAspectRatio if self.config.get('fill_screen', False) else Qt.AspectRatioMode.KeepAspectRatio
+                    
+                    # Scale image to fit the actual screen
+                    scaled_image = image.scaled(
+                        target_width,
+                        target_height,
+                        aspect_mode,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    
+                    # Center the image on the screen if keeping aspect ratio
+                    if not self.config.get('fill_screen', False):
+                        x_offset = (target_width - scaled_image.width()) // 2
+                        y_offset = (target_height - scaled_image.height()) // 2
+                    else:
+                        x_offset = 0
+                        y_offset = 0
+                    
+                    self.background_label.setPixmap(QPixmap.fromImage(scaled_image))
+                    self.background_label.setGeometry(x_offset, y_offset, scaled_image.width(), scaled_image.height())
+                    
+                except Exception as e:
+                    logger.error(f"Error scaling fullscreen image: {str(e)}")
+                    return
             else:
-                # 1920x1080 aspect ratio
-                target_height = screen_size.width() * (1080/1920)
-            
-            scaled_image = image.scaled(
-                screen_size.width(),
-                int(target_height),
-                Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            
-            # Center vertically
-            y = (screen_size.height() - scaled_image.height()) // 2
-            self.background_label.setPixmap(QPixmap.fromImage(scaled_image))
-            self.background_label.setGeometry(0, y, scaled_image.width(), scaled_image.height())
+                try:
+                    # Get current window size for windowed mode
+                    screen = QApplication.primaryScreen().geometry()
+                    window_size = self.size()
+                    
+                    # Use the selected aspect ratio in windowed mode
+                    if self.config.get('use_tall_aspect', False):
+                        # 1920x1536 aspect ratio
+                        target_height = window_size.width() * (1536/1920)
+                    elif self.config.get('use_1344_aspect', False):
+                        # 1920x1344 aspect ratio
+                        target_height = window_size.width() * (1344/1920)
+                    else:
+                        # 1920x1080 aspect ratio
+                        target_height = window_size.width() * (1080/1920)
+                    
+                    scaled_image = image.scaled(
+                        window_size.width(),
+                        int(target_height),
+                        Qt.AspectRatioMode.IgnoreAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    
+                    # Center vertically
+                    y = (window_size.height() - scaled_image.height()) // 2
+                    self.background_label.setPixmap(QPixmap.fromImage(scaled_image))
+                    self.background_label.setGeometry(0, y, scaled_image.width(), scaled_image.height())
+                except Exception as e:
+                    logger.error(f"Error setting windowed background: {str(e)}")
+                    return
             
             # Make sure the background is visible by explicitly showing it
             self.background_label.show()
             
             # Ensure background stays at the back
             self.background_label.lower()
-            
+        except Exception as e:
+            logger.error(f"Unhandled error setting background: {str(e)}")
+    
     def resizeEvent(self, event):
         """Handle window resize"""
         super().resizeEvent(event)
-        # Update close button position
+        
+        # Get actual screen dimensions
         screen = QApplication.primaryScreen().geometry()
-        self.close_button.move(screen.width() - 60, 20)
+        
+        # Update close button position based on actual screen size
+        if self.is_fullscreen:
+            self.close_button.move(screen.width() - 60, 20)
+        
         # Update background if exists - do this for both windowed and fullscreen modes
         if hasattr(self, 'background_label') and self.config.get('background_image'):
-            self.set_background(self.config['background_image'])
+            # Use a short delay to ensure the window has finished resizing
+            QTimer.singleShot(100, lambda: self.set_background(self.config['background_image']))
+        
         # Update leaderboard position only if the window size actually changed
         if self.is_fullscreen and (event.oldSize().width() != event.size().width() or 
-                                   event.oldSize().height() != event.size().height()):
-            self.center_leaderboard_with_offset()
+                                  event.oldSize().height() != event.size().height()):
+            # Use a short delay to ensure the window has finished resizing
+            QTimer.singleShot(100, self.center_leaderboard_with_offset)
     
     def update_entries(self, data):
         """Update entries using widget recycling"""
-        # Store current position
-        current_x = self.leaderboard_panel.x() if hasattr(self, 'leaderboard_panel') else None
+        # Store current position and size before doing anything
+        if hasattr(self, 'leaderboard_panel'):
+            current_pos = (self.leaderboard_panel.x(), self.leaderboard_panel.y())
+            current_size = (self.leaderboard_panel.width(), self.leaderboard_panel.height())
+            logger.warning(f"BEFORE update - Panel pos: {current_pos}, size: {current_size[0]}x{current_size[1]}")
+        else:
+            current_pos = None
+            current_size = None
+        
+        # Log the config font sizes before updating entries
+        logger.warning(f"Config when updating entries: p1={self.config.get('p1_font_size')}, p2={self.config.get('p2_font_size')}, p3={self.config.get('p3_font_size')}, other={self.config.get('other_font_size')}")
+        
+        # Update row height padding and vertical spacing from config
+        self.row_height_padding = self.config.get('row_height_padding', 16)
+        self.vertical_spacing = self.config.get('vertical_spacing', 4)
+        self.entries_layout.setSpacing(self.vertical_spacing)
+        
+        # Always set fixed width to ensure panel width doesn't change
+        if current_size:
+            self.leaderboard_panel.setFixedWidth(current_size[0])
+        else:
+            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
         
         # Hide all existing entry widgets
         for widget in self.entry_widgets:
             widget.hide()
         
-        # Create or update entry widgets
-        widths = [
-            self.config.get('position_width', 80),
-            self.config.get('driver_width', 400),
-            self.config.get('time_width', 200)
-        ]
-        while len(self.entry_widgets) < len(data):
-            entry_widget = self._create_entry_widget(widths)
-            self.entry_widgets.append(entry_widget)
-            self.entries_layout.addWidget(entry_widget, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        # Update and show widgets
-        for i, (entry, widget) in enumerate(zip(data, self.entry_widgets)):
-            self._update_entry_widget(widget, entry, i + 1)
-            widget.show()
-        
-        # Hide unused widgets
-        for widget in self.entry_widgets[len(data):]:
-            widget.hide()
+        # If row height has changed, recreate all widgets to apply new height
+        # This is more thorough than just updating existing ones
+        if data:
+            # Clear existing widgets
+            for widget in self.entry_widgets:
+                self.entries_layout.removeWidget(widget)
+                widget.deleteLater()
             
-        # Restore the original position if we were in fullscreen mode
-        if self.is_fullscreen and current_x is not None:
-            self.leaderboard_panel.move(current_x, self.leaderboard_panel.y())
+            self.entry_widgets = []
+            
+            # Create new entry widgets with updated dimensions
+            widths = [
+                self.config.get('position_width', 80),
+                self.config.get('driver_width', 400),
+                self.config.get('time_width', 200)
+            ]
+            
+            for i, entry in enumerate(data):
+                entry_widget = self._create_entry_widget(widths)
+                self._update_entry_widget(entry_widget, entry, i + 1)
+                self.entry_widgets.append(entry_widget)
+                self.entries_layout.addWidget(entry_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+                entry_widget.show()
+        
+        # Ensure size is maintained regardless of content changes    
+        if current_size:
+            self.leaderboard_panel.setFixedWidth(current_size[0])
+        
+        # Always restore position for both windowed and fullscreen modes
+        if current_pos:
+            self.leaderboard_panel.move(current_pos[0], current_pos[1])
+        
+        # Final verification that nothing changed our panel dimensions
+        if hasattr(self, 'leaderboard_panel') and current_size and current_pos:
+            new_size = (self.leaderboard_panel.width(), self.leaderboard_panel.height())
+            new_pos = (self.leaderboard_panel.x(), self.leaderboard_panel.y())
+            
+            if new_size != current_size or new_pos != current_pos:
+                logger.warning(f"Panel changed during update! Size: {current_size}->{new_size}, Pos: {current_pos}->{new_pos}")
+                # Force restoration again
+                self.leaderboard_panel.setFixedWidth(current_size[0])
+                self.leaderboard_panel.move(current_pos[0], current_pos[1])
     
     def _create_entry_widget(self, widths):
         """Create a reusable entry widget"""
@@ -525,16 +686,21 @@ class LeaderboardWindow(QWidget):
         layout.addWidget(driver_label)
         layout.addWidget(time_label)
         
-        # Instead of fixed height, make height dependent on font size
-        min_height = max(
+        # Use row height padding from config instead of fixed value
+        row_padding = self.config.get('row_height_padding', 16)
+        
+        # Set fixed row height based on the largest font size plus padding
+        max_font_size = max(
             self.config.get('p1_font_size', 24),
             self.config.get('p2_font_size', 22),
             self.config.get('p3_font_size', 20),
             self.config.get('other_font_size', 18)
-        ) + 16  # Add padding
+        )
         
-        # Set minimum height but allow expansion for larger fonts
-        widget.setMinimumHeight(min_height)
+        # Add vertical padding based on config
+        vertical_padding = self.config.get('vertical_spacing', 4)
+        row_height = max_font_size + row_padding + vertical_padding
+        widget.setFixedHeight(row_height)
         
         return widget
     
@@ -542,8 +708,9 @@ class LeaderboardWindow(QWidget):
         """Update an existing entry widget"""
         labels = widget.findChildren(QLabel)
         
-        # Calculate vertical padding based on font size
-        # For larger fonts, we need more vertical space
+        # Use consistent padding regardless of screen size
+        fixed_padding = 5  # Consistent padding for all elements
+        
         if position <= 3:
             # Special colors for top 3
             pos_colors = ['gold', 'silver', '#cd7f32']
@@ -557,8 +724,8 @@ class LeaderboardWindow(QWidget):
                 self.config.get('p3_font_size', 20)
             ]
             
-            current_font_size = font_sizes[position-1]
-            padding = max(2, int(current_font_size * 0.15))  # Scale padding with font size
+            # Log the font sizes being applied for debugging
+            logger.warning(f"Position {position}: Using font size {font_sizes[position-1]} from config")
             
             # Create special position indicator with position number and badge
             position_text = f"{pos_names[position-1]}"
@@ -570,7 +737,7 @@ class LeaderboardWindow(QWidget):
                 font-size: {font_sizes[position-1]}px;
                 font-weight: bold;
                 border-radius: 5px;
-                padding: {padding}px;
+                padding: {fixed_padding}px;
             """)
             
             # Apply larger font sizes to driver names for top 3 positions
@@ -600,13 +767,15 @@ class LeaderboardWindow(QWidget):
         else:
             # Regular styling for positions 4-10
             other_font_size = self.config.get('other_font_size', 18)
-            padding = max(2, int(other_font_size * 0.15))  # Scale padding with font size
+            
+            # Log the font size being applied for debugging
+            logger.warning(f"Position {position}: Using other_font_size {other_font_size} from config")
             
             labels[0].setStyleSheet(f"""
                 color: white; 
                 background: transparent; 
                 font-size: {other_font_size}px;
-                padding: {padding}px;
+                padding: {fixed_padding}px;
             """)
             labels[1].setStyleSheet(f"color: white; font-size: {other_font_size}px;")
             labels[2].setStyleSheet(f"color: white; font-size: {other_font_size}px;")
@@ -629,12 +798,12 @@ class LeaderboardWindow(QWidget):
         if not hasattr(self, 'header_widget') or not hasattr(self, 'entries_widget'):
             return
         
-        # Calculate padding based on font size
+        # Use fixed padding values rather than dynamic scaling
+        fixed_header_padding = 8
+        fixed_entry_padding = 5
+        
         header_font_size = self.config.get('header_font_size', 24)
         entry_font_size = self.config.get('entry_font_size', 20)
-        
-        header_padding = max(3, int(header_font_size * 0.15))
-        entry_padding = max(2, int(entry_font_size * 0.15))
             
         header_style = f"""
             QWidget {{
@@ -645,7 +814,7 @@ class LeaderboardWindow(QWidget):
                 color: white;
                 font-size: {header_font_size}px;
                 font-weight: bold;
-                padding: {header_padding}px;
+                padding: {fixed_header_padding}px;
             }}
         """
         
@@ -657,27 +826,21 @@ class LeaderboardWindow(QWidget):
             QLabel {{
                 color: white;
                 font-size: {entry_font_size}px;
-                padding: {entry_padding}px;
+                padding: {fixed_entry_padding}px;
             }}
         """
         
         self.header_widget.setStyleSheet(header_style)
         self.entries_widget.setStyleSheet(entries_style)
         
-        # Also adjust the vertical spacing based on font sizes
-        largest_font = max(
-            self.config.get('p1_font_size', 24),
-            self.config.get('p2_font_size', 22),
-            self.config.get('p3_font_size', 20),
-            self.config.get('other_font_size', 18)
-        )
+        # Update spacing values from config
+        self.vertical_spacing = self.config.get('vertical_spacing', 4)
+        self.row_height_padding = self.config.get('row_height_padding', 16)
         
-        spacing = max(2, int(largest_font * 0.1))  # 10% of largest font size
-        self.entries_layout.setSpacing(spacing)
+        self.entries_layout.setSpacing(self.vertical_spacing)
+        fixed_margin = 8  # Fixed margin
         
-        # Adjust margins proportionally to font size too
-        margin_top_bottom = max(4, int(largest_font * 0.15))
-        self.entries_layout.setContentsMargins(20, margin_top_bottom, 20, margin_top_bottom)
+        self.entries_layout.setContentsMargins(20, fixed_margin, 20, fixed_margin)
 
     def update_column_widths(self):
         """Update all column widths based on current config"""
@@ -705,23 +868,10 @@ class LeaderboardWindow(QWidget):
         """Move the leaderboard to the left"""
         self.horizontal_offset -= 50
         self.config['horizontal_offset'] = self.horizontal_offset  # Save to config
-        self.center_leaderboard_with_offset()
-        # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
-            json.dump(self.config, f)
-    
-    def move_right(self):
-        """Move the leaderboard to the right"""
-        self.horizontal_offset += 50
-        self.config['horizontal_offset'] = self.horizontal_offset  # Save to config
-        self.center_leaderboard_with_offset()
-        # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
-            json.dump(self.config, f)
-    
-    def center_leaderboard_with_offset(self):
-        """Center the leaderboard with the current horizontal offset"""
-        if self.is_fullscreen:
+        
+        # Preserve Y position when moving horizontally
+        if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
+            current_y = self.leaderboard_panel.y()
             screen = QApplication.primaryScreen().geometry()
             panel_width = self.leaderboard_panel.width()
             centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
@@ -731,8 +881,155 @@ class LeaderboardWindow(QWidget):
                 centered_x = 0
             elif centered_x + panel_width > screen.width():
                 centered_x = screen.width() - panel_width
+            
+            self.leaderboard_panel.move(centered_x, current_y)
+        else:
+            self.center_leaderboard_with_offset()
+        
+        # Save config file to make the position persistent
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
+    
+    def move_right(self):
+        """Move the leaderboard to the right"""
+        self.horizontal_offset += 50
+        self.config['horizontal_offset'] = self.horizontal_offset  # Save to config
+        
+        # Preserve Y position when moving horizontally
+        if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
+            current_y = self.leaderboard_panel.y()
+            screen = QApplication.primaryScreen().geometry()
+            panel_width = self.leaderboard_panel.width()
+            centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
+            
+            # Keep the panel within the screen bounds
+            if centered_x < 0:
+                centered_x = 0
+            elif centered_x + panel_width > screen.width():
+                centered_x = screen.width() - panel_width
+            
+            self.leaderboard_panel.move(centered_x, current_y)
+        else:
+            self.center_leaderboard_with_offset()
+        
+        # Save config file to make the position persistent
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
+    
+    def center_leaderboard_with_offset(self):
+        """Center the leaderboard with the current horizontal and vertical offsets"""
+        if self.is_fullscreen:
+            # Get actual screen dimensions
+            screen = QApplication.primaryScreen().geometry()
+            panel_width = self.leaderboard_panel.width()
+            panel_height = self.leaderboard_panel.height()
+            
+            # Center panel horizontally with offset
+            centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
+            # Center panel vertically with offset
+            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            
+            # Keep the panel within the screen bounds
+            if centered_x < 0:
+                centered_x = 0
+            elif centered_x + panel_width > screen.width():
+                centered_x = screen.width() - panel_width
                 
-            self.leaderboard_panel.move(centered_x, self.leaderboard_panel.y())
+            # Ensure the panel isn't positioned too low
+            if centered_y < 0:
+                centered_y = 0
+            elif centered_y + panel_height > screen.height() - 20:
+                centered_y = screen.height() - panel_height - 20
+            
+            self.leaderboard_panel.move(centered_x, centered_y)
+
+    def update_font_sizes(self, data=None):
+        """Update all font sizes based on current config"""
+        # Update header font sizes
+        header_font_size = self.config.get('header_font_size', 24)
+        self.header_widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: rgba(40, 40, 40, {self.config.get('opacity', 220)});
+                {'' if self.is_fullscreen else 'border-top-left-radius: 10px; border-top-right-radius: 10px;'}
+            }}
+            QLabel {{
+                color: white;
+                font-size: {header_font_size}px;
+                font-weight: bold;
+                padding: 12px;
+            }}
+        """)
+        
+        # Update entries widget font size
+        entry_font_size = self.config.get('entry_font_size', 20)
+        self.entries_widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: rgba(40, 40, 40, {self.config.get('opacity', 220)});
+                {'' if self.is_fullscreen else 'border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;'}
+            }}
+            QLabel {{
+                color: white;
+                font-size: {entry_font_size}px;
+                padding: 8px;
+            }}
+        """)
+        
+        # If data was provided directly, use it to refresh entries
+        if data and self.entry_widgets:
+            self.update_entries(data)
+
+    # Add methods for moving the leaderboard vertically
+    def move_up(self):
+        """Move the leaderboard up"""
+        self.vertical_offset -= 50
+        self.config['vertical_offset'] = self.vertical_offset  # Save to config
+        
+        # Preserve X position when moving vertically
+        if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
+            current_x = self.leaderboard_panel.x()
+            screen = QApplication.primaryScreen().geometry()
+            panel_height = self.leaderboard_panel.height()
+            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            
+            # Keep the panel within the screen bounds
+            if centered_y < 0:
+                centered_y = 0
+            elif centered_y + panel_height > screen.height():
+                centered_y = screen.height() - panel_height
+            
+            self.leaderboard_panel.move(current_x, centered_y)
+        else:
+            self.center_leaderboard_with_offset()
+        
+        # Save config file to make the position persistent
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
+    
+    def move_down(self):
+        """Move the leaderboard down"""
+        self.vertical_offset += 50
+        self.config['vertical_offset'] = self.vertical_offset  # Save to config
+        
+        # Preserve X position when moving vertically
+        if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
+            current_x = self.leaderboard_panel.x()
+            screen = QApplication.primaryScreen().geometry()
+            panel_height = self.leaderboard_panel.height()
+            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            
+            # Keep the panel within the screen bounds
+            if centered_y < 0:
+                centered_y = 0
+            elif centered_y + panel_height > screen.height():
+                centered_y = screen.height() - panel_height
+            
+            self.leaderboard_panel.move(current_x, centered_y)
+        else:
+            self.center_leaderboard_with_offset()
+        
+        # Save config file to make the position persistent
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
 
 class LapTimeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -817,11 +1114,15 @@ class ControlWindow(QMainWindow):
             'background_image': '',
             'use_tall_aspect': False,
             'use_1344_aspect': False,
+            'fill_screen': False,   # Whether to fill the entire screen with background
             'position_width': 80,    # Default width for position column
             'driver_width': 400,     # Default width for driver name column
             'time_width': 200,       # Default width for time column
             'panel_width': 800,      # Default width for entire panel
-            'horizontal_offset': 0   # Default horizontal offset
+            'horizontal_offset': 0,   # Default horizontal offset
+            'vertical_offset': 0,   # Default vertical offset
+            'vertical_spacing': 4,   # Default vertical spacing between entries
+            'row_height_padding': 16  # Default padding for row height
         }
         self.leaderboard_window = None
         self.network_thread = None
@@ -1027,6 +1328,28 @@ class ControlWindow(QMainWindow):
         aspect_layout.addWidget(self.aspect_toggle)
         settings_layout.addWidget(aspect_widget, row, 1)
 
+        # Add fill screen toggle
+        row += 1
+        settings_layout.addWidget(QLabel("Background Fill Mode:"), row, 0)
+        fill_widget = QWidget()
+        fill_layout = QHBoxLayout(fill_widget)
+        fill_layout.setSpacing(10)
+        fill_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.fill_toggle = QPushButton(self.config.get('fill_screen', False) and "Fill Screen" or "Keep Aspect Ratio")
+        self.fill_toggle.setStyleSheet("""
+            QPushButton {
+                background-color: #757575;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #616161;
+            }
+        """)
+        self.fill_toggle.clicked.connect(self.toggle_fill_mode)
+        fill_layout.addWidget(self.fill_toggle)
+        settings_layout.addWidget(fill_widget, row, 1)
+
         row += 1
         settings_layout.addWidget(QLabel("Refresh Interval:"), row, 0)
         self.refresh_interval = QLineEdit(str(self.config.get('refresh_interval', 5)))
@@ -1117,6 +1440,26 @@ class ControlWindow(QMainWindow):
         self.panel_width.setMaxLength(4)
         settings_layout.addWidget(self.panel_width, row, 1)
         
+        # Add vertical spacing settings with tooltip
+        row += 1
+        spacing_label = QLabel("Vertical Spacing:")
+        spacing_label.setToolTip("Controls the gap between each position row")
+        settings_layout.addWidget(spacing_label, row, 0)
+        self.vertical_spacing = QLineEdit(str(self.config.get('vertical_spacing', 4)))
+        self.vertical_spacing.setMaxLength(2)
+        self.vertical_spacing.setToolTip("Controls the gap between each position row")
+        settings_layout.addWidget(self.vertical_spacing, row, 1)
+        
+        # Add row height padding setting with tooltip
+        row += 1
+        padding_label = QLabel("Row Height Padding:")
+        padding_label.setToolTip("Controls the internal height of each position row")
+        settings_layout.addWidget(padding_label, row, 0)
+        self.row_height_padding = QLineEdit(str(self.config.get('row_height_padding', 16)))
+        self.row_height_padding.setMaxLength(2)
+        self.row_height_padding.setToolTip("Controls the internal height of each position row")
+        settings_layout.addWidget(self.row_height_padding, row, 1)
+        
         row += 1
         save_btn = QPushButton("Save Settings")
         save_btn.setStyleSheet("""
@@ -1138,7 +1481,8 @@ class ControlWindow(QMainWindow):
     
     def create_leaderboard_window(self):
         if self.leaderboard_window is None:
-            self.leaderboard_window = LeaderboardWindow(self.config)
+            # Create as a separate window without parent
+            self.leaderboard_window = LeaderboardWindow(self.config, parent=None)
             if self.config.get('background_image'):
                 self.leaderboard_window.set_background(self.config['background_image'])
     
@@ -1174,11 +1518,30 @@ class ControlWindow(QMainWindow):
         if self.leaderboard_window and self.config.get('background_image'):
             self.leaderboard_window.set_background(self.config['background_image'])
     
+    def toggle_fill_mode(self):
+        """Toggle between fill screen and keep aspect ratio"""
+        self.config['fill_screen'] = not self.config['fill_screen']
+        self.fill_toggle.setText(self.config['fill_screen'] and "Fill Screen" or "Keep Aspect Ratio")
+        
+        # Update the background if the leaderboard is visible
+        if self.leaderboard_window and self.config.get('background_image'):
+            self.leaderboard_window.set_background(self.config['background_image'])
+    
     def save_settings(self):
         """Save settings to config file"""
         # Always get current IP address
         local_ip = get_local_ip()
         
+        # Get the new font size values for debugging
+        new_p1_size = int(self.p1_font_size.text())
+        new_p2_size = int(self.p2_font_size.text())
+        new_p3_size = int(self.p3_font_size.text())
+        new_other_size = int(self.other_font_size.text())
+        
+        # Log the font size changes
+        logger.warning(f"Changing font sizes: p1={new_p1_size}, p2={new_p2_size}, p3={new_p3_size}, other={new_other_size}")
+        
+        # Update config
         self.config.update({
             'server_url': f'http://{local_ip}:5000',  # Always use current IP
             'background_image': self.bg_path_entry.text(),
@@ -1186,30 +1549,49 @@ class ControlWindow(QMainWindow):
             'opacity': int(self.opacity_entry.text()),
             'header_font_size': int(self.header_font_size.text()),
             'entry_font_size': int(self.entry_font_size.text()),
-            'p1_font_size': int(self.p1_font_size.text()),
-            'p2_font_size': int(self.p2_font_size.text()),
-            'p3_font_size': int(self.p3_font_size.text()),
-            'other_font_size': int(self.other_font_size.text()),
+            'p1_font_size': new_p1_size,
+            'p2_font_size': new_p2_size,
+            'p3_font_size': new_p3_size,
+            'other_font_size': new_other_size,
             'server_port': int(self.server_port_entry.text()),
             'use_tall_aspect': self.aspect_toggle.text() == "1920x1536",
             'use_1344_aspect': self.aspect_toggle.text() == "1920x1344",
+            'fill_screen': self.fill_toggle.text() == "Fill Screen",
             'position_width': int(self.position_width.text()),
             'driver_width': int(self.driver_width.text()),
             'time_width': int(self.time_width.text()),
             'panel_width': int(self.panel_width.text()),
-            'horizontal_offset': self.leaderboard_window.horizontal_offset if self.leaderboard_window else 0
+            'horizontal_offset': self.leaderboard_window.horizontal_offset if self.leaderboard_window else 0,
+            'vertical_offset': self.leaderboard_window.vertical_offset if self.leaderboard_window else 0,
+            'vertical_spacing': int(self.vertical_spacing.text()),
+            'row_height_padding': int(self.row_height_padding.text())
         })
         
         with open('config.json', 'w') as f:
             json.dump(self.config, f)
             
         if self.leaderboard_window:
-            # Update all visual aspects of the leaderboard
+            # Update the config in the leaderboard window first
+            self.leaderboard_window.config = self.config.copy()  # Make a deep copy to ensure it's passed correctly
+            
+            # Log the leaderboard's config to ensure it has the correct values
+            logger.warning(f"Leaderboard config after update: p1={self.leaderboard_window.config.get('p1_font_size')}, p2={self.leaderboard_window.config.get('p2_font_size')}, p3={self.leaderboard_window.config.get('p3_font_size')}, other={self.leaderboard_window.config.get('other_font_size')}")
+            
+            # Update visual elements in order
+            self.leaderboard_window.update_column_widths()  # First update column widths
+            
+            # Use current data to force refresh with new font sizes
+            if self.network_thread and hasattr(self.network_thread, '_last_data'):
+                current_data = self.network_thread._last_data
+                if current_data:
+                    # Force immediate update of all entries with new font settings
+                    self.leaderboard_window.update_entries(current_data)
+                    # Also directly call update_font_sizes with this data to ensure it's used
+                    if hasattr(self.leaderboard_window, 'update_font_sizes'):
+                        self.leaderboard_window.update_font_sizes(current_data)
+            
             if self.config['background_image']:
                 self.leaderboard_window.set_background(self.config['background_image'])
-            self.leaderboard_window.update_panel_style(self.config['opacity'])
-            self.leaderboard_window.update_column_widths()  # Update column widths
-            self.leaderboard_window.config = self.config  # Ensure config is in sync
         
         # Update the server URL display in the UI
         self.server_url_entry.setText(self.config['server_url'])
@@ -1239,6 +1621,11 @@ class ControlWindow(QMainWindow):
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
             
+            # Ensure background stays correct after update
+            if self.config.get('background_image'):
+                # Use a small delay to allow layout to stabilize
+                QTimer.singleShot(50, lambda: self.leaderboard_window.set_background(self.config['background_image']))
+    
     def toggle_server(self):
         if hasattr(self, 'http_server'):
             # Stop the server
