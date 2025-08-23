@@ -11,13 +11,44 @@ import socket
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QLabel, QLineEdit, QPushButton, 
                             QTabWidget, QFileDialog, QMessageBox, QGridLayout,
-                            QFrame, QScrollArea)
+                            QFrame, QScrollArea, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QImage, QCursor, QIcon
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# Reusable stylesheet constants
+CONTROL_BUTTON_STYLE = """
+    QPushButton {
+        background-color: rgba(40, 40, 40, 160);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 10px;
+    }
+    QPushButton:hover {
+        background-color: rgba(60, 60, 60, 200);
+    }
+"""
+
+CLOSE_BUTTON_STYLE = """
+    QPushButton {
+        background-color: rgba(40, 40, 40, 160);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 10px;
+    }
+    QPushButton:hover {
+        background-color: rgba(255, 0, 0, 200);
+    }
+"""
 
 def get_local_ip():
     """Get local IP address"""
@@ -172,117 +203,39 @@ class LeaderboardWindow(QWidget):
         
         # Add left/right position controls
         self.left_button = QPushButton("◀", self)
-        self.left_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 200);
-            }
-        """)
+        self.left_button.setStyleSheet(CONTROL_BUTTON_STYLE)
         self.left_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.left_button.clicked.connect(self.move_left)
         self.left_button.setFixedSize(40, 40)
         
         self.right_button = QPushButton("▶", self)
-        self.right_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 200);
-            }
-        """)
+        self.right_button.setStyleSheet(CONTROL_BUTTON_STYLE)
         self.right_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.right_button.clicked.connect(self.move_right)
         self.right_button.setFixedSize(40, 40)
         
         # Add up and down buttons for vertical positioning
         self.up_button = QPushButton("▲", self)
-        self.up_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 200);
-            }
-        """)
+        self.up_button.setStyleSheet(CONTROL_BUTTON_STYLE)
         self.up_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.up_button.clicked.connect(self.move_up)
         self.up_button.setFixedSize(40, 40)
         
         self.down_button = QPushButton("▼", self)
-        self.down_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 200);
-            }
-        """)
+        self.down_button.setStyleSheet(CONTROL_BUTTON_STYLE)
         self.down_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.down_button.clicked.connect(self.move_down)
         self.down_button.setFixedSize(40, 40)
         
         # Add mode toggle button
         self.mode_button = QPushButton("🗗", self)
-        self.mode_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(60, 60, 60, 200);
-            }
-        """)
+        self.mode_button.setStyleSheet(CONTROL_BUTTON_STYLE)
         self.mode_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mode_button.clicked.connect(self.toggle_window_mode)
         self.mode_button.setFixedSize(40, 40)
         
         self.close_button = QPushButton("✕", self)
-        self.close_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(40, 40, 40, 160);
-                color: white;
-                border: none;
-                border-radius: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 0, 0, 200);
-            }
-        """)
+        self.close_button.setStyleSheet(CLOSE_BUTTON_STYLE)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_button.clicked.connect(self.close)
         self.close_button.setFixedSize(40, 40)
@@ -319,11 +272,11 @@ class LeaderboardWindow(QWidget):
                 color: white;
                 font-size: 22px;
                 font-weight: bold;
-                padding: 12px;
+                padding: 10px 0px;
             }
         """)
         header_layout = QHBoxLayout(self.header_widget)
-        header_layout.setContentsMargins(20, 12, 20, 12)
+        header_layout.setContentsMargins(20, 4, 20, 4)
         header_layout.setSpacing(40)
         
         widths = [
@@ -357,7 +310,7 @@ class LeaderboardWindow(QWidget):
         self.entries_layout.setSpacing(self.vertical_spacing)  # Use configured vertical spacing
         panel_layout.addWidget(self.entries_widget)
         
-        layout.addWidget(self.leaderboard_panel, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.leaderboard_panel)
         
         # Set initial window mode
         self.set_window_mode(True)
@@ -374,7 +327,7 @@ class LeaderboardWindow(QWidget):
                     color: white;
                     font-size: 22px;
                     font-weight: bold;
-                    padding: 12px;
+                    padding: 10px 0px;
                 }
             """)
             self.entries_widget.setStyleSheet("""
@@ -384,7 +337,7 @@ class LeaderboardWindow(QWidget):
                 QLabel {
                     color: white;
                     font-size: 18px;
-                    padding: 8px;
+                    padding: 8px 0px;
                 }
             """)
             
@@ -416,7 +369,7 @@ class LeaderboardWindow(QWidget):
                     color: white;
                     font-size: 22px;
                     font-weight: bold;
-                    padding: 12px;
+                    padding: 10px 0px;
                 }
             """)
             self.entries_widget.setStyleSheet("""
@@ -428,7 +381,7 @@ class LeaderboardWindow(QWidget):
                 QLabel {
                     color: white;
                     font-size: 18px;
-                    padding: 8px;
+                    padding: 8px 0px;
                 }
             """)
             self.showNormal()
@@ -495,24 +448,40 @@ class LeaderboardWindow(QWidget):
                     target_width = screen.width()
                     target_height = screen.height()
                     
-                    # Choose aspect ratio mode based on fill_screen setting
-                    aspect_mode = Qt.AspectRatioMode.IgnoreAspectRatio if self.config.get('fill_screen', False) else Qt.AspectRatioMode.KeepAspectRatio
-                    
-                    # Scale image to fit the actual screen
-                    scaled_image = image.scaled(
-                        target_width,
-                        target_height,
-                        aspect_mode,
-                        Qt.TransformationMode.SmoothTransformation
-                    )
-                    
-                    # Center the image on the screen if keeping aspect ratio
-                    if not self.config.get('fill_screen', False):
-                        x_offset = (target_width - scaled_image.width()) // 2
-                        y_offset = (target_height - scaled_image.height()) // 2
-                    else:
+                    if self.config.get('fill_screen', False):
+                        # Fill entire screen, ignore aspect ratio
+                        scaled_image = image.scaled(
+                            target_width,
+                            target_height,
+                            Qt.AspectRatioMode.IgnoreAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
                         x_offset = 0
                         y_offset = 0
+                    else:
+                        # Keep aspect ratio but crop to fill screen (no black bars)
+                        image_aspect = image.width() / image.height()
+                        screen_aspect = target_width / target_height
+                        
+                        if image_aspect > screen_aspect:
+                            # Image is wider - fit height and crop sides
+                            scale_height = target_height
+                            scale_width = int(target_height * image_aspect)
+                        else:
+                            # Image is taller - fit width and crop top/bottom
+                            scale_width = target_width
+                            scale_height = int(target_width / image_aspect)
+                        
+                        scaled_image = image.scaled(
+                            scale_width,
+                            scale_height,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
+                        
+                        # Center the oversized image (this creates the crop effect)
+                        x_offset = (target_width - scaled_image.width()) // 2
+                        y_offset = (target_height - scaled_image.height()) // 2
                     
                     self.background_label.setPixmap(QPixmap.fromImage(scaled_image))
                     self.background_label.setGeometry(x_offset, y_offset, scaled_image.width(), scaled_image.height())
@@ -584,75 +553,40 @@ class LeaderboardWindow(QWidget):
     
     def update_entries(self, data):
         """Update entries using widget recycling"""
-        # Store current position and size before doing anything
-        if hasattr(self, 'leaderboard_panel'):
-            current_pos = (self.leaderboard_panel.x(), self.leaderboard_panel.y())
-            current_size = (self.leaderboard_panel.width(), self.leaderboard_panel.height())
-            logger.warning(f"BEFORE update - Panel pos: {current_pos}, size: {current_size[0]}x{current_size[1]}")
-        else:
-            current_pos = None
-            current_size = None
-        
-        # Log the config font sizes before updating entries
-        logger.warning(f"Config when updating entries: p1={self.config.get('p1_font_size')}, p2={self.config.get('p2_font_size')}, p3={self.config.get('p3_font_size')}, other={self.config.get('other_font_size')}")
-        
         # Update row height padding and vertical spacing from config
         self.row_height_padding = self.config.get('row_height_padding', 16)
         self.vertical_spacing = self.config.get('vertical_spacing', 4)
         self.entries_layout.setSpacing(self.vertical_spacing)
         
-        # Always set fixed width to ensure panel width doesn't change
-        if current_size:
-            self.leaderboard_panel.setFixedWidth(current_size[0])
-        else:
-            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+        # Ensure panel maintains configured width
+        self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
         
-        # Hide all existing entry widgets
-        for widget in self.entry_widgets:
-            widget.hide()
-        
-        # If row height has changed, recreate all widgets to apply new height
-        # This is more thorough than just updating existing ones
+        # Efficiently handle widget recycling
         if data:
-            # Clear existing widgets
-            for widget in self.entry_widgets:
-                self.entries_layout.removeWidget(widget)
-                widget.deleteLater()
-            
-            self.entry_widgets = []
-            
-            # Create new entry widgets with updated dimensions
             widths = [
                 self.config.get('position_width', 80),
                 self.config.get('driver_width', 400),
                 self.config.get('time_width', 200)
             ]
             
-            for i, entry in enumerate(data):
+            # Create additional widgets if we need more than we have
+            while len(self.entry_widgets) < len(data):
                 entry_widget = self._create_entry_widget(widths)
-                self._update_entry_widget(entry_widget, entry, i + 1)
                 self.entry_widgets.append(entry_widget)
-                self.entries_layout.addWidget(entry_widget, alignment=Qt.AlignmentFlag.AlignCenter)
-                entry_widget.show()
-        
-        # Ensure size is maintained regardless of content changes    
-        if current_size:
-            self.leaderboard_panel.setFixedWidth(current_size[0])
-        
-        # Always restore position for both windowed and fullscreen modes
-        if current_pos:
-            self.leaderboard_panel.move(current_pos[0], current_pos[1])
-        
-        # Final verification that nothing changed our panel dimensions
-        if hasattr(self, 'leaderboard_panel') and current_size and current_pos:
-            new_size = (self.leaderboard_panel.width(), self.leaderboard_panel.height())
-            new_pos = (self.leaderboard_panel.x(), self.leaderboard_panel.y())
+                self.entries_layout.addWidget(entry_widget)
             
-            if new_size != current_size or new_pos != current_pos:
-                logger.warning(f"Panel changed during update! Size: {current_size}->{new_size}, Pos: {current_pos}->{new_pos}")
-                # Force restoration again
-                self.leaderboard_panel.setFixedWidth(current_size[0])
-                self.leaderboard_panel.move(current_pos[0], current_pos[1])
+            # Hide excess widgets if we have more than we need
+            for i in range(len(data), len(self.entry_widgets)):
+                self.entry_widgets[i].hide()
+            
+            # Update the widgets we're using
+            for i, entry in enumerate(data):
+                self._update_entry_widget(self.entry_widgets[i], entry, i + 1)
+                self.entry_widgets[i].show()
+        else:
+            # Hide all widgets if no data
+            for widget in self.entry_widgets:
+                widget.hide()
     
     def _create_entry_widget(self, widths):
         """Create a reusable entry widget"""
@@ -708,6 +642,15 @@ class LeaderboardWindow(QWidget):
         """Update an existing entry widget"""
         labels = widget.findChildren(QLabel)
         
+        # Update widths in case config changed
+        widths = [
+            self.config.get('position_width', 80),
+            self.config.get('driver_width', 400),
+            self.config.get('time_width', 200)
+        ]
+        for label, width in zip(labels, widths):
+            label.setFixedWidth(width)
+        
         # Use consistent padding regardless of screen size
         fixed_padding = 5  # Consistent padding for all elements
         
@@ -724,8 +667,7 @@ class LeaderboardWindow(QWidget):
                 self.config.get('p3_font_size', 20)
             ]
             
-            # Log the font sizes being applied for debugging
-            logger.warning(f"Position {position}: Using font size {font_sizes[position-1]} from config")
+
             
             # Create special position indicator with position number and badge
             position_text = f"{pos_names[position-1]}"
@@ -767,9 +709,6 @@ class LeaderboardWindow(QWidget):
         else:
             # Regular styling for positions 4-10
             other_font_size = self.config.get('other_font_size', 18)
-            
-            # Log the font size being applied for debugging
-            logger.warning(f"Position {position}: Using other_font_size {other_font_size} from config")
             
             labels[0].setStyleSheet(f"""
                 color: white; 
@@ -956,7 +895,7 @@ class LeaderboardWindow(QWidget):
                 color: white;
                 font-size: {header_font_size}px;
                 font-weight: bold;
-                padding: 12px;
+                padding: 10px 0px;
             }}
         """)
         
@@ -970,7 +909,7 @@ class LeaderboardWindow(QWidget):
             QLabel {{
                 color: white;
                 font-size: {entry_font_size}px;
-                padding: 8px;
+                padding: 8px 0px;
             }}
         """)
         
@@ -1160,8 +1099,8 @@ class ControlWindow(QMainWindow):
     
     def setup_ui(self):
         self.setWindowTitle("Leaderboard Control")
-        self.setGeometry(100, 100, 450, 600)
-        self.setFixedSize(450, 600)
+        self.setGeometry(100, 100, 650, 880)
+        self.setFixedSize(650, 880)
         
         # Set the application style
         self.setStyleSheet("""
@@ -1173,10 +1112,11 @@ class ControlWindow(QMainWindow):
                 color: #333333;
             }
             QLineEdit, QComboBox {
-                padding: 8px;
+                padding: 6px 10px; /* reduce vertical padding to avoid clipping */
                 border: 1px solid #cccccc;
                 border-radius: 4px;
                 background-color: white;
+                min-height: 28px; /* smaller guaranteed height */
             }
             QPushButton {
                 padding: 10px 20px;
@@ -1185,6 +1125,7 @@ class ControlWindow(QMainWindow):
                 border: none;
                 border-radius: 4px;
                 font-size: 14px;
+                min-height: 36px;
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -1208,15 +1149,16 @@ class ControlWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
+        # Tighter top-level spacing and margins
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
         
         self.show_leaderboard_btn = QPushButton("Show Leaderboard")
         self.show_leaderboard_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2196F3;
                 font-size: 16px;
-                padding: 12px;
+                padding: 10px 16px;
             }
             QPushButton:hover {
                 background-color: #1976D2;
@@ -1228,19 +1170,23 @@ class ControlWindow(QMainWindow):
         tabs = QTabWidget()
         layout.addWidget(tabs)
         
-        # Settings tab with scroll area
-        settings_tab = QWidget()
-        settings_scroll = QScrollArea()
-        settings_scroll.setWidgetResizable(True)
-        settings_scroll.setWidget(settings_tab)
-        settings_layout = QGridLayout(settings_tab)
-        settings_layout.setSpacing(15)
+        # General tab (server and app behavior)
+        general_tab = QWidget()
+        general_layout = QGridLayout(general_tab)
+        general_layout.setHorizontalSpacing(12)
+        general_layout.setVerticalSpacing(12)
+        general_layout.setContentsMargins(12, 12, 12, 12)
+        # Make inputs wider than labels so fields are easy to edit
+        general_layout.setColumnStretch(0, 1)
+        general_layout.setColumnStretch(1, 4)
+        general_layout.setColumnMinimumWidth(0, 160)
+        general_layout.setColumnMinimumWidth(1, 320)
         
-        row = 0
+        row_g = 0
         # Server URL at the top (read-only)
         url_label = QLabel("Server URL:")
         url_label.setStyleSheet("font-weight: bold;")
-        settings_layout.addWidget(url_label, row, 0)
+        general_layout.addWidget(url_label, row_g, 0)
         self.server_url_entry = QLineEdit(self.config.get('server_url', 'http://localhost:5000'))
         self.server_url_entry.setReadOnly(True)
         self.server_url_entry.setStyleSheet("""
@@ -1249,48 +1195,105 @@ class ControlWindow(QMainWindow):
                 color: #666666;
             }
         """)
-        settings_layout.addWidget(self.server_url_entry, row, 1)
+        self.server_url_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        general_layout.addWidget(self.server_url_entry, row_g, 1)
         
-        row += 1
+        row_g += 1
         self.server_status_label = QLabel("Server Status: Not Running")
         self.server_status_label.setStyleSheet("color: #666666;")
-        settings_layout.addWidget(self.server_status_label, row, 0, 1, 2)
+        general_layout.addWidget(self.server_status_label, row_g, 0, 1, 2)
         
-        row += 1
+        row_g += 1
         self.server_toggle_btn = QPushButton("Start Server")
         self.server_toggle_btn.clicked.connect(self.toggle_server)
-        settings_layout.addWidget(self.server_toggle_btn, row, 0, 1, 2)
+        general_layout.addWidget(self.server_toggle_btn, row_g, 0, 1, 2)
         
-        row += 1
-        settings_layout.addWidget(QLabel("Server Port:"), row, 0)
+        row_g += 1
+        general_layout.addWidget(QLabel("Server Port:"), row_g, 0)
         self.server_port_entry = QLineEdit(str(self.config.get('server_port', 5000)))
         self.server_port_entry.setMaxLength(5)
-        settings_layout.addWidget(self.server_port_entry, row, 1)
+        self.server_port_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        general_layout.addWidget(self.server_port_entry, row_g, 1)
         
-        row += 1
+        row_g += 1
         server_info = QLabel("The server receives lap times from racing simulators.\nIt must be running to record new lap times.")
         server_info.setStyleSheet("color: #666666; font-style: italic;")
         server_info.setWordWrap(True)
-        settings_layout.addWidget(server_info, row, 0, 1, 2)
+        general_layout.addWidget(server_info, row_g, 0, 1, 2)
         
-        # Add a separator
-        row += 1
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #cccccc;")
-        settings_layout.addWidget(separator, row, 0, 1, 2)
+        # Separator
+        row_g += 1
+        separator_g = QFrame()
+        separator_g.setFrameShape(QFrame.Shape.HLine)
+        separator_g.setFrameShadow(QFrame.Shadow.Sunken)
+        separator_g.setStyleSheet("background-color: #cccccc;")
+        separator_g.setFixedHeight(1)
+        separator_g.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        general_layout.addWidget(separator_g, row_g, 0, 1, 2)
         
-        row += 1
-        settings_layout.addWidget(QLabel("Background Image:"), row, 0)
+        row_g += 1
+        general_layout.addWidget(QLabel("Refresh Interval:"), row_g, 0)
+        self.refresh_interval = QLineEdit(str(self.config.get('refresh_interval', 5)))
+        self.refresh_interval.setMaxLength(3)
+        self.refresh_interval.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        general_layout.addWidget(self.refresh_interval, row_g, 1)
+        
+        row_g += 1
+        save_btn_general = QPushButton("Save Settings")
+        save_btn_general.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                font-size: 14px;
+                padding: 10px;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        save_btn_general.clicked.connect(self.save_settings)
+        general_layout.addWidget(save_btn_general, row_g, 0, 1, 2)
+        general_layout.setRowStretch(row_g + 1, 1)
+        tabs.addTab(general_tab, "General")
+
+        # Appearance tab (visual controls) - two columns to reduce scrolling
+        appearance_tab = QWidget()
+        appearance_vlayout = QVBoxLayout(appearance_tab)
+        appearance_vlayout.setSpacing(8)
+        appearance_vlayout.setContentsMargins(12, 12, 12, 12)
+
+        columns_layout = QHBoxLayout()
+        columns_layout.setSpacing(24)
+
+        # Left column
+        left_widget = QWidget()
+        left_layout = QGridLayout(left_widget)
+        left_layout.setHorizontalSpacing(12)
+        left_layout.setVerticalSpacing(12)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setColumnStretch(0, 1)
+        left_layout.setColumnStretch(1, 3)
+        left_layout.setColumnMinimumWidth(0, 160)
+        left_layout.setColumnMinimumWidth(1, 320)
+
+        row_l = 0
+        left_layout.addWidget(QLabel("Box Opacity (0-255):"), row_l, 0)
+        self.opacity_entry = QLineEdit(str(self.config.get('opacity', 220)))
+        self.opacity_entry.setMaxLength(3)
+        self.opacity_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        left_layout.addWidget(self.opacity_entry, row_l, 1)
+
+        row_l += 1
+        left_layout.addWidget(QLabel("Background Image:"), row_l, 0)
         bg_widget = QWidget()
         bg_layout = QHBoxLayout(bg_widget)
         bg_layout.setSpacing(10)
         bg_layout.setContentsMargins(0, 0, 0, 0)
-        
         self.bg_path_entry = QLineEdit(self.config.get('background_image', ''))
         self.bg_path_entry.setReadOnly(True)
-        bg_layout.addWidget(self.bg_path_entry)
+        self.bg_path_entry.setMinimumWidth(300)
+        self.bg_path_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        bg_layout.addWidget(self.bg_path_entry, 1)
         browse_btn = QPushButton("Browse")
         browse_btn.setStyleSheet("""
             QPushButton {
@@ -1302,18 +1305,17 @@ class ControlWindow(QMainWindow):
             }
         """)
         browse_btn.clicked.connect(self.choose_background)
-        browse_btn.setMaximumWidth(100)
+        browse_btn.setMaximumWidth(120)
         bg_layout.addWidget(browse_btn)
-        settings_layout.addWidget(bg_widget, row, 1)
+        left_layout.addWidget(bg_widget, row_l, 1)
 
-        # Add aspect ratio toggle
-        row += 1
-        settings_layout.addWidget(QLabel("Background Aspect:"), row, 0)
+        # Aspect ratio toggle
+        row_l += 1
+        left_layout.addWidget(QLabel("Background Aspect:"), row_l, 0)
         aspect_widget = QWidget()
         aspect_layout = QHBoxLayout(aspect_widget)
         aspect_layout.setSpacing(10)
         aspect_layout.setContentsMargins(0, 0, 0, 0)
-        
         self.aspect_toggle = QPushButton(self.config.get('use_tall_aspect', False) and "1920x1536" or "1920x1080")
         self.aspect_toggle.setStyleSheet("""
             QPushButton {
@@ -1324,18 +1326,18 @@ class ControlWindow(QMainWindow):
                 background-color: #616161;
             }
         """)
+        self.aspect_toggle.setFixedWidth(140)
         self.aspect_toggle.clicked.connect(self.toggle_aspect_ratio)
         aspect_layout.addWidget(self.aspect_toggle)
-        settings_layout.addWidget(aspect_widget, row, 1)
+        left_layout.addWidget(aspect_widget, row_l, 1)
 
-        # Add fill screen toggle
-        row += 1
-        settings_layout.addWidget(QLabel("Background Fill Mode:"), row, 0)
+        # Fill mode toggle
+        row_l += 1
+        left_layout.addWidget(QLabel("Background Fill Mode:"), row_l, 0)
         fill_widget = QWidget()
         fill_layout = QHBoxLayout(fill_widget)
         fill_layout.setSpacing(10)
         fill_layout.setContentsMargins(0, 0, 0, 0)
-        
         self.fill_toggle = QPushButton(self.config.get('fill_screen', False) and "Fill Screen" or "Keep Aspect Ratio")
         self.fill_toggle.setStyleSheet("""
             QPushButton {
@@ -1346,123 +1348,152 @@ class ControlWindow(QMainWindow):
                 background-color: #616161;
             }
         """)
+        self.fill_toggle.setFixedWidth(140)
         self.fill_toggle.clicked.connect(self.toggle_fill_mode)
         fill_layout.addWidget(self.fill_toggle)
-        settings_layout.addWidget(fill_widget, row, 1)
+        left_layout.addWidget(fill_widget, row_l, 1)
 
-        row += 1
-        settings_layout.addWidget(QLabel("Refresh Interval:"), row, 0)
-        self.refresh_interval = QLineEdit(str(self.config.get('refresh_interval', 5)))
-        self.refresh_interval.setMaxLength(3)
-        settings_layout.addWidget(self.refresh_interval, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Box Opacity (0-255):"), row, 0)
-        self.opacity_entry = QLineEdit(str(self.config.get('opacity', 220)))
-        self.opacity_entry.setMaxLength(3)
-        settings_layout.addWidget(self.opacity_entry, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Header Font Size:"), row, 0)
+        # Header/Entry font sizes
+        row_l += 1
+        sep_l = QFrame()
+        sep_l.setFrameShape(QFrame.Shape.HLine)
+        sep_l.setFrameShadow(QFrame.Shadow.Sunken)
+        sep_l.setStyleSheet("background-color: #cccccc;")
+        sep_l.setFixedHeight(1)
+        sep_l.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        left_layout.addWidget(sep_l, row_l, 0, 1, 2)
+
+        row_l += 1
+        left_layout.addWidget(QLabel("Header Font Size:"), row_l, 0)
         self.header_font_size = QLineEdit(str(self.config.get('header_font_size', 24)))
         self.header_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.header_font_size, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Entry Font Size:"), row, 0)
+        self.header_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        left_layout.addWidget(self.header_font_size, row_l, 1)
+
+        row_l += 1
+        left_layout.addWidget(QLabel("Entry Font Size:"), row_l, 0)
         self.entry_font_size = QLineEdit(str(self.config.get('entry_font_size', 20)))
         self.entry_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.entry_font_size, row, 1)
-        
-        # Add position-specific font size settings
-        row += 1
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #cccccc;")
-        settings_layout.addWidget(separator, row, 0, 1, 2)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("1st Place Font Size:"), row, 0)
+        self.entry_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        left_layout.addWidget(self.entry_font_size, row_l, 1)
+
+        # Right column
+        right_widget = QWidget()
+        right_layout = QGridLayout(right_widget)
+        right_layout.setHorizontalSpacing(12)
+        right_layout.setVerticalSpacing(12)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setColumnStretch(0, 1)
+        right_layout.setColumnStretch(1, 3)
+        right_layout.setColumnMinimumWidth(0, 160)
+        right_layout.setColumnMinimumWidth(1, 320)
+
+        row_r = 0
+        right_layout.addWidget(QLabel("1st Place Font Size:"), row_r, 0)
         self.p1_font_size = QLineEdit(str(self.config.get('p1_font_size', 24)))
         self.p1_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.p1_font_size, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("2nd Place Font Size:"), row, 0)
+        self.p1_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.p1_font_size, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("2nd Place Font Size:"), row_r, 0)
         self.p2_font_size = QLineEdit(str(self.config.get('p2_font_size', 22)))
         self.p2_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.p2_font_size, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("3rd Place Font Size:"), row, 0)
+        self.p2_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.p2_font_size, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("3rd Place Font Size:"), row_r, 0)
         self.p3_font_size = QLineEdit(str(self.config.get('p3_font_size', 20)))
         self.p3_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.p3_font_size, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Other Positions Font Size:"), row, 0)
+        self.p3_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.p3_font_size, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("Other Positions Font Size:"), row_r, 0)
         self.other_font_size = QLineEdit(str(self.config.get('other_font_size', 18)))
         self.other_font_size.setMaxLength(2)
-        settings_layout.addWidget(self.other_font_size, row, 1)
-        
-        # Add a separator for column width settings
-        row += 1
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #cccccc;")
-        settings_layout.addWidget(separator, row, 0, 1, 2)
-        
-        # Column width settings
-        row += 1
-        settings_layout.addWidget(QLabel("Position Column Width:"), row, 0)
+        self.other_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.other_font_size, row_r, 1)
+
+        # Separator
+        row_r += 1
+        sep_r1 = QFrame()
+        sep_r1.setFrameShape(QFrame.Shape.HLine)
+        sep_r1.setFrameShadow(QFrame.Shadow.Sunken)
+        sep_r1.setStyleSheet("background-color: #cccccc;")
+        sep_r1.setFixedHeight(1)
+        sep_r1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(sep_r1, row_r, 0, 1, 2)
+
+        # Column widths
+        row_r += 1
+        right_layout.addWidget(QLabel("Position Column Width:"), row_r, 0)
         self.position_width = QLineEdit(str(self.config.get('position_width', 80)))
         self.position_width.setMaxLength(3)
-        settings_layout.addWidget(self.position_width, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Driver Column Width:"), row, 0)
+        self.position_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.position_width, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("Driver Column Width:"), row_r, 0)
         self.driver_width = QLineEdit(str(self.config.get('driver_width', 400)))
         self.driver_width.setMaxLength(3)
-        settings_layout.addWidget(self.driver_width, row, 1)
-        
-        row += 1
-        settings_layout.addWidget(QLabel("Time Column Width:"), row, 0)
+        self.driver_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.driver_width, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("Time Column Width:"), row_r, 0)
         self.time_width = QLineEdit(str(self.config.get('time_width', 200)))
         self.time_width.setMaxLength(3)
-        settings_layout.addWidget(self.time_width, row, 1)
-        
-        # Add panel width setting after column width settings
-        row += 1
-        settings_layout.addWidget(QLabel("Overall Panel Width:"), row, 0)
+        self.time_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.time_width, row_r, 1)
+
+        row_r += 1
+        right_layout.addWidget(QLabel("Overall Panel Width:"), row_r, 0)
         self.panel_width = QLineEdit(str(self.config.get('panel_width', 800)))
         self.panel_width.setMaxLength(4)
-        settings_layout.addWidget(self.panel_width, row, 1)
-        
-        # Add vertical spacing settings with tooltip
-        row += 1
+        self.panel_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.panel_width, row_r, 1)
+
+        # Separator
+        row_r += 1
+        sep_r2 = QFrame()
+        sep_r2.setFrameShape(QFrame.Shape.HLine)
+        sep_r2.setFrameShadow(QFrame.Shadow.Sunken)
+        sep_r2.setStyleSheet("background-color: #cccccc;")
+        sep_r2.setFixedHeight(1)
+        sep_r2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(sep_r2, row_r, 0, 1, 2)
+
+        # Spacing and padding
+        row_r += 1
         spacing_label = QLabel("Vertical Spacing:")
         spacing_label.setToolTip("Controls the gap between each position row")
-        settings_layout.addWidget(spacing_label, row, 0)
+        right_layout.addWidget(spacing_label, row_r, 0)
         self.vertical_spacing = QLineEdit(str(self.config.get('vertical_spacing', 4)))
         self.vertical_spacing.setMaxLength(2)
         self.vertical_spacing.setToolTip("Controls the gap between each position row")
-        settings_layout.addWidget(self.vertical_spacing, row, 1)
-        
-        # Add row height padding setting with tooltip
-        row += 1
+        self.vertical_spacing.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.vertical_spacing, row_r, 1)
+
+        row_r += 1
         padding_label = QLabel("Row Height Padding:")
         padding_label.setToolTip("Controls the internal height of each position row")
-        settings_layout.addWidget(padding_label, row, 0)
+        right_layout.addWidget(padding_label, row_r, 0)
         self.row_height_padding = QLineEdit(str(self.config.get('row_height_padding', 16)))
         self.row_height_padding.setMaxLength(2)
         self.row_height_padding.setToolTip("Controls the internal height of each position row")
-        settings_layout.addWidget(self.row_height_padding, row, 1)
-        
-        row += 1
-        save_btn = QPushButton("Save Settings")
-        save_btn.setStyleSheet("""
+        self.row_height_padding.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        right_layout.addWidget(self.row_height_padding, row_r, 1)
+
+        # Assemble columns and add to tab
+        columns_layout.addWidget(left_widget)
+        columns_layout.addWidget(right_widget)
+        appearance_vlayout.addLayout(columns_layout)
+        appearance_vlayout.addStretch(1)
+
+        save_btn_appearance = QPushButton("Save Settings")
+        save_btn_appearance.setStyleSheet("""
             QPushButton {
                 background-color: #2196F3;
                 font-size: 14px;
@@ -1473,11 +1504,9 @@ class ControlWindow(QMainWindow):
                 background-color: #1976D2;
             }
         """)
-        save_btn.clicked.connect(self.save_settings)
-        settings_layout.addWidget(save_btn, row, 0, 1, 2)
-        
-        settings_layout.setRowStretch(row + 1, 1)
-        tabs.addTab(settings_scroll, "Settings")
+        save_btn_appearance.clicked.connect(self.save_settings)
+        appearance_vlayout.addWidget(save_btn_appearance)
+        tabs.addTab(appearance_tab, "Appearance")
     
     def create_leaderboard_window(self):
         if self.leaderboard_window is None:
@@ -1532,14 +1561,7 @@ class ControlWindow(QMainWindow):
         # Always get current IP address
         local_ip = get_local_ip()
         
-        # Get the new font size values for debugging
-        new_p1_size = int(self.p1_font_size.text())
-        new_p2_size = int(self.p2_font_size.text())
-        new_p3_size = int(self.p3_font_size.text())
-        new_other_size = int(self.other_font_size.text())
-        
-        # Log the font size changes
-        logger.warning(f"Changing font sizes: p1={new_p1_size}, p2={new_p2_size}, p3={new_p3_size}, other={new_other_size}")
+
         
         # Update config
         self.config.update({
@@ -1549,10 +1571,10 @@ class ControlWindow(QMainWindow):
             'opacity': int(self.opacity_entry.text()),
             'header_font_size': int(self.header_font_size.text()),
             'entry_font_size': int(self.entry_font_size.text()),
-            'p1_font_size': new_p1_size,
-            'p2_font_size': new_p2_size,
-            'p3_font_size': new_p3_size,
-            'other_font_size': new_other_size,
+            'p1_font_size': int(self.p1_font_size.text()),
+            'p2_font_size': int(self.p2_font_size.text()),
+            'p3_font_size': int(self.p3_font_size.text()),
+            'other_font_size': int(self.other_font_size.text()),
             'server_port': int(self.server_port_entry.text()),
             'use_tall_aspect': self.aspect_toggle.text() == "1920x1536",
             'use_1344_aspect': self.aspect_toggle.text() == "1920x1344",
@@ -1573,9 +1595,6 @@ class ControlWindow(QMainWindow):
         if self.leaderboard_window:
             # Update the config in the leaderboard window first
             self.leaderboard_window.config = self.config.copy()  # Make a deep copy to ensure it's passed correctly
-            
-            # Log the leaderboard's config to ensure it has the correct values
-            logger.warning(f"Leaderboard config after update: p1={self.leaderboard_window.config.get('p1_font_size')}, p2={self.leaderboard_window.config.get('p2_font_size')}, p3={self.leaderboard_window.config.get('p3_font_size')}, other={self.leaderboard_window.config.get('other_font_size')}")
             
             # Update visual elements in order
             self.leaderboard_window.update_column_widths()  # First update column widths
@@ -1620,11 +1639,6 @@ class ControlWindow(QMainWindow):
     def update_leaderboard(self, data):
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
-            
-            # Ensure background stays correct after update
-            if self.config.get('background_image'):
-                # Use a small delay to allow layout to stabilize
-                QTimer.singleShot(50, lambda: self.leaderboard_window.set_background(self.config['background_image']))
     
     def toggle_server(self):
         if hasattr(self, 'http_server'):

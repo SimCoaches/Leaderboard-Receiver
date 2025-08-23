@@ -1,11 +1,1 @@
 simulator_id,driver_name,lap_time,email,timestamp
-1,Lewis Hamilton,82.342,driver1@example.com,2023-04-01T10:00:00
-1,Max Verstappen,82.861,driver2@example.com,2023-04-01T10:05:00
-1,Fernando Alonso,83.127,driver3@example.com,2023-04-01T10:10:00
-1,Lando Norris,83.456,driver4@example.com,2023-04-01T10:15:00
-1,Charles Leclerc,83.871,driver5@example.com,2023-04-01T10:20:00
-1,Carlos Sainz,84.132,driver6@example.com,2023-04-01T10:25:00
-1,George Russell,84.425,driver7@example.com,2023-04-01T10:30:00
-1,Sergio Perez,84.687,driver8@example.com,2023-04-01T10:35:00
-1,Daniel Ricciardo,85.012,driver9@example.com,2023-04-01T10:40:00
-1,Alex Albon,85.345,driver10@example.com,2023-04-01T10:45:00
