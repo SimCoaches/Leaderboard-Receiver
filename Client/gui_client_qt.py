@@ -180,12 +180,38 @@ class LeaderboardWindow(QWidget):
         self.is_fullscreen = True
         self.dragging = False
         self.drag_position = None
-        self.horizontal_offset = self.config.get('horizontal_offset', 0)  # Load saved horizontal offset
-        self.vertical_offset = self.config.get('vertical_offset', 0)  # Load saved vertical offset
+        
+        # Load offsets based on current orientation
+        self._load_offsets_for_orientation()
+        
         self.vertical_spacing = self.config.get('vertical_spacing', 4)  # Get spacing between entries
         self.row_height_padding = self.config.get('row_height_padding', 16)  # Get internal row height padding
         self.setup_ui()
         self.hide()
+    
+    def _load_offsets_for_orientation(self):
+        """Load the correct offsets based on current orientation"""
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        if is_vertical:
+            self.horizontal_offset = self.config.get('horizontal_offset_v', 0)
+            self.vertical_offset = self.config.get('vertical_offset_v', 0)
+        else:
+            self.horizontal_offset = self.config.get('horizontal_offset_h', 0)
+            self.vertical_offset = self.config.get('vertical_offset_h', 0)
+    
+    def _save_offsets_for_orientation(self):
+        """Save offsets to the correct config keys based on current orientation"""
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        if is_vertical:
+            self.config['horizontal_offset_v'] = self.horizontal_offset
+            self.config['vertical_offset_v'] = self.vertical_offset
+        else:
+            self.config['horizontal_offset_h'] = self.horizontal_offset
+            self.config['vertical_offset_h'] = self.vertical_offset
+        
+        # Also update legacy keys for backward compatibility
+        self.config['horizontal_offset'] = self.horizontal_offset
+        self.config['vertical_offset'] = self.vertical_offset
         
     def setup_ui(self):
         # Set window flags for both modes
@@ -253,7 +279,13 @@ class LeaderboardWindow(QWidget):
         
         # Rest of the UI setup remains the same
         self.leaderboard_panel = QWidget(self)
-        self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+        # Set panel size based on orientation
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        if is_vertical:
+            # 11 rows x 123px = 1353px
+            self.leaderboard_panel.setFixedSize(864, 1353)
+        else:
+            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
         self.leaderboard_panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         panel_layout = QVBoxLayout(self.leaderboard_panel)
@@ -275,6 +307,12 @@ class LeaderboardWindow(QWidget):
                 padding: 10px 0px;
             }
         """)
+        
+        # Set fixed header height for vertical mode
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        if is_vertical:
+            self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
+        
         header_layout = QHBoxLayout(self.header_widget)
         header_layout.setContentsMargins(20, 4, 20, 4)
         header_layout.setSpacing(40)
@@ -448,6 +486,9 @@ class LeaderboardWindow(QWidget):
                     target_width = screen.width()
                     target_height = screen.height()
                     
+                    # Check if vertical orientation is selected
+                    is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+                    
                     if self.config.get('fill_screen', False):
                         # Fill entire screen, ignore aspect ratio
                         scaled_image = image.scaled(
@@ -495,19 +536,21 @@ class LeaderboardWindow(QWidget):
                     screen = QApplication.primaryScreen().geometry()
                     window_size = self.size()
                     
-                    # Use the selected aspect ratio in windowed mode
-                    if self.config.get('use_tall_aspect', False):
-                        # 1920x1536 aspect ratio
-                        target_height = window_size.width() * (1536/1920)
-                    elif self.config.get('use_1344_aspect', False):
-                        # 1920x1344 aspect ratio
-                        target_height = window_size.width() * (1344/1920)
+                    # Check if vertical orientation is selected
+                    is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+                    
+                    if is_vertical:
+                        # Vertical orientation: 1080x1920 aspect ratio (portrait)
+                        # In windowed mode, make height taller than width
+                        target_width = window_size.width()
+                        target_height = window_size.width() * (1920/1080)
                     else:
-                        # 1920x1080 aspect ratio
+                        # Horizontal orientation: 1920x1080 aspect ratio
+                        target_width = window_size.width()
                         target_height = window_size.width() * (1080/1920)
                     
                     scaled_image = image.scaled(
-                        window_size.width(),
+                        int(target_width),
                         int(target_height),
                         Qt.AspectRatioMode.IgnoreAspectRatio,
                         Qt.TransformationMode.SmoothTransformation
@@ -556,10 +599,23 @@ class LeaderboardWindow(QWidget):
         # Update row height padding and vertical spacing from config
         self.row_height_padding = self.config.get('row_height_padding', 16)
         self.vertical_spacing = self.config.get('vertical_spacing', 4)
-        self.entries_layout.setSpacing(self.vertical_spacing)
         
-        # Ensure panel maintains configured width
-        self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+        # Check orientation for row height
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        
+        if is_vertical:
+            # Use fixed spacing of 0 for vertical mode (heights are exact)
+            self.entries_layout.setSpacing(0)
+            # Update header height for vertical mode
+            self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
+            # Panel size: 864 width, 11 rows x 123px = 1353px
+            self.leaderboard_panel.setFixedSize(864, 1353)
+        else:
+            self.entries_layout.setSpacing(self.vertical_spacing)
+            # Remove fixed height constraint on header for horizontal mode
+            self.header_widget.setMinimumHeight(0)
+            self.header_widget.setMaximumHeight(16777215)  # Qt's QWIDGETSIZE_MAX
+            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
         
         # Efficiently handle widget recycling
         if data:
@@ -579,8 +635,24 @@ class LeaderboardWindow(QWidget):
             for i in range(len(data), len(self.entry_widgets)):
                 self.entry_widgets[i].hide()
             
+            # Calculate proper row height based on orientation
+            if is_vertical:
+                row_height = self.config.get('vertical_row_height', 123)
+            else:
+                row_padding = self.config.get('row_height_padding', 16)
+                max_font_size = max(
+                    self.config.get('p1_font_size', 24),
+                    self.config.get('p2_font_size', 22),
+                    self.config.get('p3_font_size', 20),
+                    self.config.get('other_font_size', 18)
+                )
+                vertical_padding = self.config.get('vertical_spacing', 4)
+                row_height = max_font_size + row_padding + vertical_padding
+            
             # Update the widgets we're using
             for i, entry in enumerate(data):
+                # Update row height for each widget
+                self.entry_widgets[i].setFixedHeight(row_height)
                 self._update_entry_widget(self.entry_widgets[i], entry, i + 1)
                 self.entry_widgets[i].show()
         else:
@@ -620,20 +692,24 @@ class LeaderboardWindow(QWidget):
         layout.addWidget(driver_label)
         layout.addWidget(time_label)
         
-        # Use row height padding from config instead of fixed value
-        row_padding = self.config.get('row_height_padding', 16)
+        # Check if vertical mode - use fixed row height
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
         
-        # Set fixed row height based on the largest font size plus padding
-        max_font_size = max(
-            self.config.get('p1_font_size', 24),
-            self.config.get('p2_font_size', 22),
-            self.config.get('p3_font_size', 20),
-            self.config.get('other_font_size', 18)
-        )
+        if is_vertical:
+            # Use fixed row height for vertical mode (123px by default)
+            row_height = self.config.get('vertical_row_height', 123)
+        else:
+            # Use dynamic row height based on font size for horizontal mode
+            row_padding = self.config.get('row_height_padding', 16)
+            max_font_size = max(
+                self.config.get('p1_font_size', 24),
+                self.config.get('p2_font_size', 22),
+                self.config.get('p3_font_size', 20),
+                self.config.get('other_font_size', 18)
+            )
+            vertical_padding = self.config.get('vertical_spacing', 4)
+            row_height = max_font_size + row_padding + vertical_padding
         
-        # Add vertical padding based on config
-        vertical_padding = self.config.get('vertical_spacing', 4)
-        row_height = max_font_size + row_padding + vertical_padding
         widget.setFixedHeight(row_height)
         
         return widget
@@ -799,14 +875,21 @@ class LeaderboardWindow(QWidget):
             for label, width in zip(entry_labels, widths):
                 label.setFixedWidth(width)
         
-        # Update panel width
-        self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+        # Update panel size based on orientation
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        if is_vertical:
+            # Fixed size for vertical orientation: 864 x (11 rows x 123px = 1353)
+            self.leaderboard_panel.setFixedSize(864, 1353)
+        else:
+            # Use configured width for horizontal orientation
+            panel_width = self.config.get('panel_width', 800)
+            self.leaderboard_panel.setFixedWidth(panel_width)
 
     # Add new methods for moving the leaderboard
     def move_left(self):
         """Move the leaderboard to the left"""
         self.horizontal_offset -= 50
-        self.config['horizontal_offset'] = self.horizontal_offset  # Save to config
+        self._save_offsets_for_orientation()  # Save to correct config keys
         
         # Preserve Y position when moving horizontally
         if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
@@ -832,7 +915,7 @@ class LeaderboardWindow(QWidget):
     def move_right(self):
         """Move the leaderboard to the right"""
         self.horizontal_offset += 50
-        self.config['horizontal_offset'] = self.horizontal_offset  # Save to config
+        self._save_offsets_for_orientation()  # Save to correct config keys
         
         # Preserve Y position when moving horizontally
         if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
@@ -860,8 +943,16 @@ class LeaderboardWindow(QWidget):
         if self.is_fullscreen:
             # Get actual screen dimensions
             screen = QApplication.primaryScreen().geometry()
-            panel_width = self.leaderboard_panel.width()
-            panel_height = self.leaderboard_panel.height()
+            # For vertical orientation, use fixed size
+            is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+            if is_vertical:
+                # Fixed size for vertical: 864 x (11 rows x 123px = 1353)
+                self.leaderboard_panel.setFixedSize(864, 1353)
+                panel_width = 864
+                panel_height = 1353
+            else:
+                panel_width = self.leaderboard_panel.width()
+                panel_height = self.leaderboard_panel.height()
             
             # Center panel horizontally with offset
             centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
@@ -921,7 +1012,7 @@ class LeaderboardWindow(QWidget):
     def move_up(self):
         """Move the leaderboard up"""
         self.vertical_offset -= 50
-        self.config['vertical_offset'] = self.vertical_offset  # Save to config
+        self._save_offsets_for_orientation()  # Save to correct config keys
         
         # Preserve X position when moving vertically
         if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
@@ -947,7 +1038,7 @@ class LeaderboardWindow(QWidget):
     def move_down(self):
         """Move the leaderboard down"""
         self.vertical_offset += 50
-        self.config['vertical_offset'] = self.vertical_offset  # Save to config
+        self._save_offsets_for_orientation()  # Save to correct config keys
         
         # Preserve X position when moving vertically
         if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
@@ -1051,17 +1142,21 @@ class ControlWindow(QMainWindow):
             'p3_font_size': 20,    # Third place font size
             'other_font_size': 18, # Other positions font size
             'background_image': '',
-            'use_tall_aspect': False,
-            'use_1344_aspect': False,
             'fill_screen': False,   # Whether to fill the entire screen with background
             'position_width': 80,    # Default width for position column
             'driver_width': 400,     # Default width for driver name column
             'time_width': 200,       # Default width for time column
             'panel_width': 800,      # Default width for entire panel
-            'horizontal_offset': 0,   # Default horizontal offset
-            'vertical_offset': 0,   # Default vertical offset
+            'horizontal_offset': 0,   # Legacy - kept for migration
+            'vertical_offset': 0,   # Legacy - kept for migration
+            'horizontal_offset_h': 0,   # Horizontal offset for horizontal mode
+            'vertical_offset_h': 0,   # Vertical offset for horizontal mode
+            'horizontal_offset_v': 0,   # Horizontal offset for vertical mode
+            'vertical_offset_v': 0,   # Vertical offset for vertical mode
             'vertical_spacing': 4,   # Default vertical spacing between entries
-            'row_height_padding': 16  # Default padding for row height
+            'row_height_padding': 16,  # Default padding for row height
+            'orientation': 'horizontal',  # 'horizontal' or 'vertical' display mode
+            'vertical_row_height': 123  # Fixed row height for vertical mode (px)
         }
         self.leaderboard_window = None
         self.network_thread = None
@@ -1088,6 +1183,27 @@ class ControlWindow(QMainWindow):
             try:
                 with open('config.json', 'r') as f:
                     loaded_config = json.load(f)
+                    # Remove deprecated aspect ratio settings
+                    if 'use_tall_aspect' in loaded_config:
+                        del loaded_config['use_tall_aspect']
+                    if 'use_1344_aspect' in loaded_config:
+                        del loaded_config['use_1344_aspect']
+                    
+                    # Migrate legacy offset values to per-mode keys if not already migrated
+                    if 'horizontal_offset' in loaded_config and 'horizontal_offset_h' not in loaded_config:
+                        # Determine which mode the legacy offsets belong to based on current orientation
+                        current_orientation = loaded_config.get('orientation', 'horizontal')
+                        if current_orientation == 'vertical':
+                            loaded_config['horizontal_offset_v'] = loaded_config.get('horizontal_offset', 0)
+                            loaded_config['vertical_offset_v'] = loaded_config.get('vertical_offset', 0)
+                            loaded_config['horizontal_offset_h'] = 0
+                            loaded_config['vertical_offset_h'] = 0
+                        else:
+                            loaded_config['horizontal_offset_h'] = loaded_config.get('horizontal_offset', 0)
+                            loaded_config['vertical_offset_h'] = loaded_config.get('vertical_offset', 0)
+                            loaded_config['horizontal_offset_v'] = 0
+                            loaded_config['vertical_offset_v'] = 0
+                    
                     # Update config with loaded values, keeping defaults for missing keys
                     self.config.update(loaded_config)
                     
@@ -1183,7 +1299,47 @@ class ControlWindow(QMainWindow):
         general_layout.setColumnMinimumWidth(1, 320)
         
         row_g = 0
-        # Server URL at the top (read-only)
+        # Display orientation at the very top - most important setting
+        orientation_label = QLabel("Display Orientation:")
+        orientation_label.setStyleSheet("font-weight: bold;")
+        general_layout.addWidget(orientation_label, row_g, 0)
+        orientation_widget_g = QWidget()
+        orientation_layout_g = QHBoxLayout(orientation_widget_g)
+        orientation_layout_g.setSpacing(10)
+        orientation_layout_g.setContentsMargins(0, 0, 0, 0)
+        self.orientation_toggle = QPushButton(self.config.get('orientation', 'horizontal').capitalize())
+        self.orientation_toggle.setStyleSheet("""
+            QPushButton {
+                background-color: #9C27B0;
+                padding: 8px 16px;
+                color: white;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #7B1FA2;
+            }
+        """)
+        self.orientation_toggle.setFixedWidth(140)
+        self.orientation_toggle.clicked.connect(self.toggle_orientation)
+        orientation_layout_g.addWidget(self.orientation_toggle)
+        orientation_info = QLabel("(Vertical: 1080x1920, Horizontal: 1920x1080)")
+        orientation_info.setStyleSheet("color: #666666; font-style: italic;")
+        orientation_layout_g.addWidget(orientation_info)
+        orientation_layout_g.addStretch()
+        general_layout.addWidget(orientation_widget_g, row_g, 1)
+        
+        # Separator after orientation
+        row_g += 1
+        separator_orient = QFrame()
+        separator_orient.setFrameShape(QFrame.Shape.HLine)
+        separator_orient.setFrameShadow(QFrame.Shadow.Sunken)
+        separator_orient.setStyleSheet("background-color: #cccccc;")
+        separator_orient.setFixedHeight(1)
+        separator_orient.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        general_layout.addWidget(separator_orient, row_g, 0, 1, 2)
+        
+        row_g += 1
+        # Server URL (read-only)
         url_label = QLabel("Server URL:")
         url_label.setStyleSheet("font-weight: bold;")
         general_layout.addWidget(url_label, row_g, 0)
@@ -1308,28 +1464,6 @@ class ControlWindow(QMainWindow):
         browse_btn.setMaximumWidth(120)
         bg_layout.addWidget(browse_btn)
         left_layout.addWidget(bg_widget, row_l, 1)
-
-        # Aspect ratio toggle
-        row_l += 1
-        left_layout.addWidget(QLabel("Background Aspect:"), row_l, 0)
-        aspect_widget = QWidget()
-        aspect_layout = QHBoxLayout(aspect_widget)
-        aspect_layout.setSpacing(10)
-        aspect_layout.setContentsMargins(0, 0, 0, 0)
-        self.aspect_toggle = QPushButton(self.config.get('use_tall_aspect', False) and "1920x1536" or "1920x1080")
-        self.aspect_toggle.setStyleSheet("""
-            QPushButton {
-                background-color: #757575;
-                padding: 8px 16px;
-            }
-            QPushButton:hover {
-                background-color: #616161;
-            }
-        """)
-        self.aspect_toggle.setFixedWidth(140)
-        self.aspect_toggle.clicked.connect(self.toggle_aspect_ratio)
-        aspect_layout.addWidget(self.aspect_toggle)
-        left_layout.addWidget(aspect_widget, row_l, 1)
 
         # Fill mode toggle
         row_l += 1
@@ -1527,26 +1661,6 @@ class ControlWindow(QMainWindow):
             self.bg_path_entry.setText(file_name)
             self.save_settings()
     
-    def toggle_aspect_ratio(self):
-        """Toggle between 16:9, tall, and 1920x1344 aspect ratios"""
-        current_text = self.aspect_toggle.text()
-        if current_text == "1920x1080":
-            self.aspect_toggle.setText("1920x1536")
-            self.config['use_tall_aspect'] = True
-            self.config['use_1344_aspect'] = False
-        elif current_text == "1920x1536":
-            self.aspect_toggle.setText("1920x1344")
-            self.config['use_tall_aspect'] = False
-            self.config['use_1344_aspect'] = True
-        else:
-            self.aspect_toggle.setText("1920x1080")
-            self.config['use_tall_aspect'] = False
-            self.config['use_1344_aspect'] = False
-        
-        # Update the background if it exists
-        if self.leaderboard_window and self.config.get('background_image'):
-            self.leaderboard_window.set_background(self.config['background_image'])
-    
     def toggle_fill_mode(self):
         """Toggle between fill screen and keep aspect ratio"""
         self.config['fill_screen'] = not self.config['fill_screen']
@@ -1555,6 +1669,50 @@ class ControlWindow(QMainWindow):
         # Update the background if the leaderboard is visible
         if self.leaderboard_window and self.config.get('background_image'):
             self.leaderboard_window.set_background(self.config['background_image'])
+    
+    def toggle_orientation(self):
+        """Toggle between horizontal (1920x1080) and vertical (1080x1920) display orientation"""
+        if self.config.get('orientation', 'horizontal') == 'horizontal':
+            self.config['orientation'] = 'vertical'
+            self.orientation_toggle.setText("Vertical")
+        else:
+            self.config['orientation'] = 'horizontal'
+            self.orientation_toggle.setText("Horizontal")
+        
+        # Remove old aspect ratio settings
+        self.config['use_tall_aspect'] = False
+        self.config['use_1344_aspect'] = False
+        
+        # Update the leaderboard window config and refresh
+        if self.leaderboard_window:
+            self.leaderboard_window.config['orientation'] = self.config['orientation']
+            self.leaderboard_window.config['use_tall_aspect'] = False
+            self.leaderboard_window.config['use_1344_aspect'] = False
+            
+            # Load the correct offsets for the new orientation
+            self.leaderboard_window._load_offsets_for_orientation()
+            
+            # Update panel size based on orientation
+            is_vertical = self.config['orientation'] == 'vertical'
+            if is_vertical:
+                # 11 rows x 123px = 1353px
+                self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
+            else:
+                panel_width = self.config.get('panel_width', 800)
+                self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
+            
+            # Update column widths to reflect new panel size
+            self.leaderboard_window.update_column_widths()
+            
+            if self.config.get('background_image'):
+                self.leaderboard_window.set_background(self.config['background_image'])
+            # Re-center the leaderboard panel with the new offsets
+            if self.leaderboard_window.is_fullscreen:
+                self.leaderboard_window.center_leaderboard_with_offset()
+        
+        # Save config to persist orientation change
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
     
     def save_settings(self):
         """Save settings to config file"""
@@ -1576,18 +1734,28 @@ class ControlWindow(QMainWindow):
             'p3_font_size': int(self.p3_font_size.text()),
             'other_font_size': int(self.other_font_size.text()),
             'server_port': int(self.server_port_entry.text()),
-            'use_tall_aspect': self.aspect_toggle.text() == "1920x1536",
-            'use_1344_aspect': self.aspect_toggle.text() == "1920x1344",
             'fill_screen': self.fill_toggle.text() == "Fill Screen",
             'position_width': int(self.position_width.text()),
             'driver_width': int(self.driver_width.text()),
             'time_width': int(self.time_width.text()),
             'panel_width': int(self.panel_width.text()),
-            'horizontal_offset': self.leaderboard_window.horizontal_offset if self.leaderboard_window else 0,
-            'vertical_offset': self.leaderboard_window.vertical_offset if self.leaderboard_window else 0,
             'vertical_spacing': int(self.vertical_spacing.text()),
-            'row_height_padding': int(self.row_height_padding.text())
+            'row_height_padding': int(self.row_height_padding.text()),
+            'orientation': self.orientation_toggle.text().lower()
         })
+        
+        # Preserve per-mode offset values
+        if self.leaderboard_window:
+            is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+            if is_vertical:
+                self.config['horizontal_offset_v'] = self.leaderboard_window.horizontal_offset
+                self.config['vertical_offset_v'] = self.leaderboard_window.vertical_offset
+            else:
+                self.config['horizontal_offset_h'] = self.leaderboard_window.horizontal_offset
+                self.config['vertical_offset_h'] = self.leaderboard_window.vertical_offset
+            # Also update legacy keys for backward compatibility
+            self.config['horizontal_offset'] = self.leaderboard_window.horizontal_offset
+            self.config['vertical_offset'] = self.leaderboard_window.vertical_offset
         
         with open('config.json', 'w') as f:
             json.dump(self.config, f)
@@ -1595,6 +1763,15 @@ class ControlWindow(QMainWindow):
         if self.leaderboard_window:
             # Update the config in the leaderboard window first
             self.leaderboard_window.config = self.config.copy()  # Make a deep copy to ensure it's passed correctly
+            
+            # Update panel size based on orientation
+            is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+            if is_vertical:
+                # 11 rows x 123px = 1353px
+                self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
+            else:
+                panel_width = self.config.get('panel_width', 800)
+                self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
             
             # Update visual elements in order
             self.leaderboard_window.update_column_widths()  # First update column widths

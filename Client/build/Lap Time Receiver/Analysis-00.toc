@@ -1,16 +1,13 @@
-(['C:\\Users\\Lawrence '
-  'Thomas\\Desktop\\Leaderboard\\Receiver\\Leaderboard-Receiver\\Client\\gui_client_qt.py'],
- ['C:\\Users\\Lawrence '
-  'Thomas\\Desktop\\Leaderboard\\Receiver\\Leaderboard-Receiver\\Client'],
+(['C:\\Users\\Lawrence Thomas\\Documents\\Leaderboard '
+  'Software\\Receiver\\Client\\gui_client_qt.py'],
+ ['C:\\Users\\Lawrence Thomas\\Documents\\Leaderboard '
+  'Software\\Receiver\\Client'],
  [],
  [('C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\numpy\\_pyinstaller',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\pygame\\__pyinstaller',
    0),
   ('C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\playwright\\_impl\\__pyinstaller',
-   0),
-  ('C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\pygame\\__pyinstaller',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\numpy\\_pyinstaller',
    0),
   ('C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks',
@@ -24,7 +21,10 @@
  False,
  {},
  0,
- [],
+ [('PyQt6\\sip.cp311-win_amd64.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\sip.cp311-win_amd64.pyd',
+   'BINARY')],
  [],
  '3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit '
  '(AMD64)]',
@@ -40,41 +40,89 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgutil.py',
    'PYSOURCE'),
+  ('pyi_rth_multiprocessing',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_multiprocessing.py',
+   'PYSOURCE'),
   ('pyi_rth_cryptography_openssl',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks\\pyi_rth_cryptography_openssl.py',
    'PYSOURCE'),
   ('gui_client_qt',
-   'C:\\Users\\Lawrence '
-   'Thomas\\Desktop\\Leaderboard\\Receiver\\Leaderboard-Receiver\\Client\\gui_client_qt.py',
+   'C:\\Users\\Lawrence Thomas\\Documents\\Leaderboard '
+   'Software\\Receiver\\Client\\gui_client_qt.py',
    'PYSOURCE')],
- [('pkgutil',
+ [('subprocess',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pkgutil.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\subprocess.py',
    'PYMODULE'),
-  ('zipimport',
+  ('selectors',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\zipimport.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\selectors.py',
    'PYMODULE'),
-  ('importlib.readers',
+  ('contextlib',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\readers.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\contextlib.py',
    'PYMODULE'),
-  ('importlib.resources.readers',
+  ('signal',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\resources\\readers.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\signal.py',
    'PYMODULE'),
-  ('importlib.resources._itertools',
+  ('_strptime',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\resources\\_itertools.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_strptime.py',
+   'PYMODULE'),
+  ('calendar',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\calendar.py',
+   'PYMODULE'),
+  ('argparse',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\argparse.py',
+   'PYMODULE'),
+  ('textwrap',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\textwrap.py',
+   'PYMODULE'),
+  ('shutil',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\shutil.py',
+   'PYMODULE'),
+  ('zipfile',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\zipfile.py',
+   'PYMODULE'),
+  ('py_compile',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\py_compile.py',
+   'PYMODULE'),
+  ('importlib.machinery',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\machinery.py',
+   'PYMODULE'),
+  ('importlib',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\__init__.py',
+   'PYMODULE'),
+  ('importlib._bootstrap',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\_bootstrap.py',
+   'PYMODULE'),
+  ('importlib._bootstrap_external',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\_bootstrap_external.py',
+   'PYMODULE'),
+  ('importlib.metadata',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\metadata\\__init__.py',
    'PYMODULE'),
   ('typing',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\typing.py',
    'PYMODULE'),
-  ('contextlib',
+  ('importlib.abc',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\contextlib.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\abc.py',
    'PYMODULE'),
   ('importlib.resources.abc',
    'C:\\Users\\Lawrence '
@@ -136,81 +184,9 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\bisect.py',
    'PYMODULE'),
-  ('shutil',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\shutil.py',
-   'PYMODULE'),
-  ('tarfile',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tarfile.py',
-   'PYMODULE'),
-  ('argparse',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\argparse.py',
-   'PYMODULE'),
-  ('textwrap',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\textwrap.py',
-   'PYMODULE'),
-  ('gettext',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\gettext.py',
-   'PYMODULE'),
-  ('gzip',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\gzip.py',
-   'PYMODULE'),
-  ('_compression',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_compression.py',
-   'PYMODULE'),
-  ('copy',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py',
-   'PYMODULE'),
-  ('struct',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\struct.py',
-   'PYMODULE'),
-  ('lzma',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\lzma.py',
-   'PYMODULE'),
-  ('bz2',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\bz2.py',
-   'PYMODULE'),
-  ('fnmatch',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\fnmatch.py',
-   'PYMODULE'),
-  ('zipfile',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\zipfile.py',
-   'PYMODULE'),
-  ('py_compile',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\py_compile.py',
-   'PYMODULE'),
-  ('importlib._bootstrap_external',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\_bootstrap_external.py',
-   'PYMODULE'),
-  ('importlib.metadata',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\metadata\\__init__.py',
-   'PYMODULE'),
-  ('importlib.abc',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\abc.py',
-   'PYMODULE'),
   ('importlib._abc',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\_abc.py',
-   'PYMODULE'),
-  ('importlib._bootstrap',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\_bootstrap.py',
    'PYMODULE'),
   ('importlib.metadata._itertools',
    'C:\\Users\\Lawrence '
@@ -320,10 +296,6 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\email\\_parseaddr.py',
    'PYMODULE'),
-  ('calendar',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\calendar.py',
-   'PYMODULE'),
   ('urllib.parse',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\urllib\\parse.py',
@@ -348,6 +320,18 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\email\\feedparser.py',
    'PYMODULE'),
+  ('importlib.readers',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\readers.py',
+   'PYMODULE'),
+  ('importlib.resources.readers',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\resources\\readers.py',
+   'PYMODULE'),
+  ('importlib.resources._itertools',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\resources\\_itertools.py',
+   'PYMODULE'),
   ('tokenize',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tokenize.py',
@@ -360,161 +344,97 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pathlib.py',
    'PYMODULE'),
-  ('_strptime',
+  ('struct',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_strptime.py',
-   'PYMODULE'),
-  ('inspect',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\inspect.py',
-   'PYMODULE'),
-  ('dis',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\dis.py',
-   'PYMODULE'),
-  ('opcode',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\opcode.py',
-   'PYMODULE'),
-  ('ast',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ast.py',
-   'PYMODULE'),
-  ('importlib.machinery',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\machinery.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\struct.py',
    'PYMODULE'),
   ('importlib.util',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\util.py',
    'PYMODULE'),
-  ('importlib',
+  ('tarfile',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\importlib\\__init__.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tarfile.py',
    'PYMODULE'),
-  ('_pyi_rth_utils.qt',
+  ('gzip',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\fake-modules\\_pyi_rth_utils\\qt.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\gzip.py',
    'PYMODULE'),
-  ('_pyi_rth_utils',
+  ('_compression',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\fake-modules\\_pyi_rth_utils\\__init__.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_compression.py',
    'PYMODULE'),
-  ('stringprep',
+  ('lzma',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\stringprep.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\lzma.py',
    'PYMODULE'),
-  ('tracemalloc',
+  ('bz2',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tracemalloc.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\bz2.py',
    'PYMODULE'),
-  ('pickle',
+  ('fnmatch',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pickle.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\fnmatch.py',
    'PYMODULE'),
-  ('pprint',
+  ('copy',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pprint.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py',
    'PYMODULE'),
-  ('dataclasses',
+  ('gettext',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\dataclasses.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\gettext.py',
    'PYMODULE'),
-  ('_compat_pickle',
+  ('multiprocessing.spawn',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_compat_pickle.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\spawn.py',
    'PYMODULE'),
-  ('_py_abc',
+  ('multiprocessing.resource_tracker',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_py_abc.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\resource_tracker.py',
    'PYMODULE'),
-  ('PyQt6',
+  ('multiprocessing.util',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\__init__.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\util.py',
    'PYMODULE'),
-  ('socket',
+  ('multiprocessing.forkserver',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\socket.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\forkserver.py',
    'PYMODULE'),
-  ('selectors',
+  ('multiprocessing.connection',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\selectors.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\connection.py',
    'PYMODULE'),
-  ('threading',
+  ('multiprocessing.resource_sharer',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\threading.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\resource_sharer.py',
    'PYMODULE'),
-  ('_threading_local',
+  ('xmlrpc.client',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_threading_local.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xmlrpc\\client.py',
    'PYMODULE'),
-  ('http.server',
+  ('xmlrpc',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\server.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xmlrpc\\__init__.py',
    'PYMODULE'),
-  ('subprocess',
+  ('xml.parsers.expat',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\subprocess.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\parsers\\expat.py',
    'PYMODULE'),
-  ('signal',
+  ('xml.parsers',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\signal.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\parsers\\__init__.py',
    'PYMODULE'),
-  ('http',
+  ('xml',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\__init__.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\__init__.py',
    'PYMODULE'),
-  ('socketserver',
+  ('xml.sax.expatreader',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\socketserver.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\expatreader.py',
    'PYMODULE'),
-  ('mimetypes',
+  ('xml.sax.saxutils',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\mimetypes.py',
-   'PYMODULE'),
-  ('http.client',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\client.py',
-   'PYMODULE'),
-  ('ssl',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ssl.py',
-   'PYMODULE'),
-  ('html',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\html\\__init__.py',
-   'PYMODULE'),
-  ('html.entities',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\html\\entities.py',
-   'PYMODULE'),
-  ('logging',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\logging\\__init__.py',
-   'PYMODULE'),
-  ('requests',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\__init__.py',
-   'PYMODULE'),
-  ('requests.status_codes',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\status_codes.py',
-   'PYMODULE'),
-  ('requests.structures',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\structures.py',
-   'PYMODULE'),
-  ('requests.compat',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\compat.py',
-   'PYMODULE'),
-  ('http.cookies',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\cookies.py',
-   'PYMODULE'),
-  ('http.cookiejar',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\cookiejar.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\saxutils.py',
    'PYMODULE'),
   ('urllib.request',
    'C:\\Users\\Lawrence '
@@ -540,6 +460,22 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\shlex.py',
    'PYMODULE'),
+  ('mimetypes',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\mimetypes.py',
+   'PYMODULE'),
+  ('http.cookiejar',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\cookiejar.py',
+   'PYMODULE'),
+  ('http',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\__init__.py',
+   'PYMODULE'),
+  ('ssl',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ssl.py',
+   'PYMODULE'),
   ('urllib.response',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\urllib\\response.py',
@@ -548,213 +484,673 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\urllib\\error.py',
    'PYMODULE'),
-  ('requests.api',
+  ('xml.sax',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\api.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\__init__.py',
    'PYMODULE'),
-  ('requests.sessions',
+  ('xml.sax.handler',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\sessions.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\handler.py',
    'PYMODULE'),
-  ('requests.adapters',
+  ('xml.sax._exceptions',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\adapters.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\_exceptions.py',
    'PYMODULE'),
-  ('urllib3.contrib.socks',
+  ('xml.sax.xmlreader',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\contrib\\socks.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\xml\\sax\\xmlreader.py',
    'PYMODULE'),
-  ('urllib3.util.url',
+  ('http.client',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\url.py',
-   'PYMODULE'),
-  ('idna',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\__init__.py',
-   'PYMODULE'),
-  ('idna.package_data',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\package_data.py',
-   'PYMODULE'),
-  ('idna.intranges',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\intranges.py',
-   'PYMODULE'),
-  ('idna.core',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\core.py',
-   'PYMODULE'),
-  ('idna.uts46data',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\uts46data.py',
-   'PYMODULE'),
-  ('idna.idnadata',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\idna\\idnadata.py',
-   'PYMODULE'),
-  ('urllib3.packages.six',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\packages\\six.py',
-   'PYMODULE'),
-  ('urllib3.packages',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\packages\\__init__.py',
-   'PYMODULE'),
-  ('urllib3.connectionpool',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\connectionpool.py',
-   'PYMODULE'),
-  ('urllib3.packages.backports.weakref_finalize',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\packages\\backports\\weakref_finalize.py',
-   'PYMODULE'),
-  ('urllib3.packages.backports',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\packages\\backports\\__init__.py',
-   'PYMODULE'),
-  ('urllib3.util.timeout',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\timeout.py',
-   'PYMODULE'),
-  ('urllib3.util.ssl_match_hostname',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\ssl_match_hostname.py',
-   'PYMODULE'),
-  ('urllib3.util.response',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\response.py',
-   'PYMODULE'),
-  ('urllib3.util.request',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\request.py',
-   'PYMODULE'),
-  ('urllib3.util.queue',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\queue.py',
-   'PYMODULE'),
-  ('urllib3.util.proxy',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\proxy.py',
-   'PYMODULE'),
-  ('urllib3.util.ssl_',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\ssl_.py',
-   'PYMODULE'),
-  ('urllib3.util.ssltransport',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\ssltransport.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\client.py',
    'PYMODULE'),
   ('hmac',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\hmac.py',
    'PYMODULE'),
-  ('urllib3.util.connection',
+  ('multiprocessing.context',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\connection.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\context.py',
    'PYMODULE'),
-  ('urllib3.util.wait',
+  ('multiprocessing.popen_spawn_win32',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\wait.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\popen_spawn_win32.py',
    'PYMODULE'),
-  ('urllib3.contrib._appengine_environ',
+  ('multiprocessing.popen_forkserver',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\contrib\\_appengine_environ.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\popen_forkserver.py',
    'PYMODULE'),
-  ('urllib3.request',
+  ('multiprocessing.popen_spawn_posix',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\request.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\popen_spawn_posix.py',
    'PYMODULE'),
-  ('urllib3.filepost',
+  ('multiprocessing.popen_fork',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\filepost.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\popen_fork.py',
    'PYMODULE'),
-  ('urllib3.fields',
+  ('multiprocessing.sharedctypes',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\fields.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\sharedctypes.py',
+   'PYMODULE'),
+  ('multiprocessing.heap',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\heap.py',
+   'PYMODULE'),
+  ('ctypes',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ctypes\\__init__.py',
+   'PYMODULE'),
+  ('ctypes._endian',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ctypes\\_endian.py',
+   'PYMODULE'),
+  ('multiprocessing.pool',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\pool.py',
+   'PYMODULE'),
+  ('multiprocessing.dummy',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\dummy\\__init__.py',
+   'PYMODULE'),
+  ('multiprocessing.dummy.connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\dummy\\connection.py',
    'PYMODULE'),
   ('queue',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\queue.py',
    'PYMODULE'),
-  ('urllib3._collections',
+  ('multiprocessing.queues',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\_collections.py',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\queues.py',
+   'PYMODULE'),
+  ('multiprocessing.synchronize',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\synchronize.py',
+   'PYMODULE'),
+  ('multiprocessing.managers',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\managers.py',
+   'PYMODULE'),
+  ('multiprocessing.shared_memory',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\shared_memory.py',
+   'PYMODULE'),
+  ('secrets',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\secrets.py',
+   'PYMODULE'),
+  ('multiprocessing.reduction',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\reduction.py',
+   'PYMODULE'),
+  ('pickle',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pickle.py',
+   'PYMODULE'),
+  ('pprint',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pprint.py',
+   'PYMODULE'),
+  ('dataclasses',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\dataclasses.py',
+   'PYMODULE'),
+  ('inspect',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\inspect.py',
+   'PYMODULE'),
+  ('dis',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\dis.py',
+   'PYMODULE'),
+  ('opcode',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\opcode.py',
+   'PYMODULE'),
+  ('ast',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ast.py',
+   'PYMODULE'),
+  ('_compat_pickle',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_compat_pickle.py',
+   'PYMODULE'),
+  ('multiprocessing.process',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\process.py',
+   'PYMODULE'),
+  ('runpy',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\runpy.py',
+   'PYMODULE'),
+  ('pkgutil',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pkgutil.py',
+   'PYMODULE'),
+  ('zipimport',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\zipimport.py',
+   'PYMODULE'),
+  ('multiprocessing',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\__init__.py',
+   'PYMODULE'),
+  ('_pyi_rth_utils.qt',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\fake-modules\\_pyi_rth_utils\\qt.py',
+   'PYMODULE'),
+  ('_pyi_rth_utils',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyInstaller\\fake-modules\\_pyi_rth_utils\\__init__.py',
+   'PYMODULE'),
+  ('_py_abc',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_py_abc.py',
+   'PYMODULE'),
+  ('stringprep',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\stringprep.py',
+   'PYMODULE'),
+  ('tracemalloc',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tracemalloc.py',
+   'PYMODULE'),
+  ('PyQt6',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\__init__.py',
+   'PYMODULE'),
+  ('socket',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\socket.py',
+   'PYMODULE'),
+  ('threading',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\threading.py',
+   'PYMODULE'),
+  ('_threading_local',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_threading_local.py',
+   'PYMODULE'),
+  ('http.server',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\server.py',
+   'PYMODULE'),
+  ('socketserver',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\socketserver.py',
+   'PYMODULE'),
+  ('html',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\html\\__init__.py',
+   'PYMODULE'),
+  ('html.entities',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\html\\entities.py',
+   'PYMODULE'),
+  ('logging',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\logging\\__init__.py',
+   'PYMODULE'),
+  ('requests',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\__init__.py',
+   'PYMODULE'),
+  ('requests.status_codes',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\status_codes.py',
+   'PYMODULE'),
+  ('requests.structures',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\structures.py',
+   'PYMODULE'),
+  ('requests.compat',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\compat.py',
+   'PYMODULE'),
+  ('http.cookies',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\http\\cookies.py',
+   'PYMODULE'),
+  ('requests.models',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\models.py',
+   'PYMODULE'),
+  ('idna',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\__init__.py',
+   'PYMODULE'),
+  ('idna.package_data',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\package_data.py',
+   'PYMODULE'),
+  ('idna.intranges',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\intranges.py',
+   'PYMODULE'),
+  ('idna.core',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\core.py',
+   'PYMODULE'),
+  ('idna.uts46data',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\uts46data.py',
+   'PYMODULE'),
+  ('idna.idnadata',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\idna\\idnadata.py',
+   'PYMODULE'),
+  ('requests.hooks',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\hooks.py',
+   'PYMODULE'),
+  ('requests.cookies',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\cookies.py',
+   'PYMODULE'),
+  ('requests.auth',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\auth.py',
+   'PYMODULE'),
+  ('requests._internal_utils',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\_internal_utils.py',
+   'PYMODULE'),
+  ('urllib3.util',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\__init__.py',
+   'PYMODULE'),
+  ('urllib3.util.wait',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\wait.py',
+   'PYMODULE'),
+  ('urllib3.util.url',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\url.py',
+   'PYMODULE'),
+  ('urllib3.util.util',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\util.py',
+   'PYMODULE'),
+  ('urllib3.util.timeout',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\timeout.py',
+   'PYMODULE'),
+  ('urllib3.util.ssl_',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\ssl_.py',
+   'PYMODULE'),
+  ('urllib3.util.ssltransport',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\ssltransport.py',
+   'PYMODULE'),
+  ('typing_extensions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\typing_extensions.py',
+   'PYMODULE'),
+  ('asyncio.coroutines',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\coroutines.py',
+   'PYMODULE'),
+  ('asyncio',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\__init__.py',
+   'PYMODULE'),
+  ('asyncio.unix_events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\unix_events.py',
+   'PYMODULE'),
+  ('asyncio.log',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\log.py',
+   'PYMODULE'),
+  ('asyncio.windows_events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\windows_events.py',
+   'PYMODULE'),
+  ('asyncio.windows_utils',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\windows_utils.py',
+   'PYMODULE'),
+  ('asyncio.selector_events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\selector_events.py',
+   'PYMODULE'),
+  ('asyncio.proactor_events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\proactor_events.py',
+   'PYMODULE'),
+  ('asyncio.base_subprocess',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\base_subprocess.py',
+   'PYMODULE'),
+  ('asyncio.threads',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\threads.py',
+   'PYMODULE'),
+  ('asyncio.timeouts',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\timeouts.py',
+   'PYMODULE'),
+  ('asyncio.taskgroups',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\taskgroups.py',
+   'PYMODULE'),
+  ('asyncio.subprocess',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\subprocess.py',
+   'PYMODULE'),
+  ('asyncio.streams',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\streams.py',
+   'PYMODULE'),
+  ('asyncio.queues',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\queues.py',
+   'PYMODULE'),
+  ('asyncio.runners',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\runners.py',
+   'PYMODULE'),
+  ('asyncio.base_events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\base_events.py',
+   'PYMODULE'),
+  ('concurrent.futures',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\__init__.py',
+   'PYMODULE'),
+  ('concurrent.futures.thread',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\thread.py',
+   'PYMODULE'),
+  ('concurrent.futures.process',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\process.py',
+   'PYMODULE'),
+  ('concurrent.futures._base',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py',
+   'PYMODULE'),
+  ('concurrent',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\__init__.py',
+   'PYMODULE'),
+  ('asyncio.trsock',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\trsock.py',
+   'PYMODULE'),
+  ('asyncio.staggered',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\staggered.py',
+   'PYMODULE'),
+  ('asyncio.tasks',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\tasks.py',
+   'PYMODULE'),
+  ('asyncio.locks',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\locks.py',
+   'PYMODULE'),
+  ('asyncio.base_tasks',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\base_tasks.py',
+   'PYMODULE'),
+  ('asyncio.mixins',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\mixins.py',
+   'PYMODULE'),
+  ('asyncio.sslproto',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\sslproto.py',
+   'PYMODULE'),
+  ('asyncio.transports',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\transports.py',
+   'PYMODULE'),
+  ('asyncio.protocols',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\protocols.py',
+   'PYMODULE'),
+  ('asyncio.futures',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\futures.py',
+   'PYMODULE'),
+  ('asyncio.base_futures',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\base_futures.py',
+   'PYMODULE'),
+  ('asyncio.exceptions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\exceptions.py',
+   'PYMODULE'),
+  ('asyncio.events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\events.py',
+   'PYMODULE'),
+  ('asyncio.format_helpers',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\format_helpers.py',
+   'PYMODULE'),
+  ('asyncio.constants',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\asyncio\\constants.py',
+   'PYMODULE'),
+  ('urllib3.util.retry',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\retry.py',
+   'PYMODULE'),
+  ('urllib3.response',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\response.py',
    'PYMODULE'),
   ('urllib3.connection',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\connection.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\connection.py',
+   'PYMODULE'),
+  ('urllib3.util.ssl_match_hostname',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\ssl_match_hostname.py',
    'PYMODULE'),
   ('urllib3._version',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\_version.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\_version.py',
+   'PYMODULE'),
+  ('urllib3.http2.probe',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\http2\\probe.py',
+   'PYMODULE'),
+  ('urllib3.http2',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\http2\\__init__.py',
+   'PYMODULE'),
+  ('urllib3.http2.connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\http2\\connection.py',
+   'PYMODULE'),
+  ('h2.events',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\events.py',
+   'PYMODULE'),
+  ('h2',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\__init__.py',
+   'PYMODULE'),
+  ('h2.errors',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\errors.py',
+   'PYMODULE'),
+  ('hyperframe.frame',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hyperframe\\frame.py',
+   'PYMODULE'),
+  ('hyperframe',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hyperframe\\__init__.py',
+   'PYMODULE'),
+  ('hyperframe.flags',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hyperframe\\flags.py',
+   'PYMODULE'),
+  ('hyperframe.exceptions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hyperframe\\exceptions.py',
+   'PYMODULE'),
+  ('hpack.struct',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\struct.py',
+   'PYMODULE'),
+  ('hpack',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\__init__.py',
+   'PYMODULE'),
+  ('hpack.hpack',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\hpack.py',
+   'PYMODULE'),
+  ('hpack.table',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\table.py',
+   'PYMODULE'),
+  ('hpack.huffman_table',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\huffman_table.py',
+   'PYMODULE'),
+  ('hpack.huffman_constants',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\huffman_constants.py',
+   'PYMODULE'),
+  ('hpack.huffman',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\huffman.py',
+   'PYMODULE'),
+  ('hpack.exceptions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\hpack\\exceptions.py',
+   'PYMODULE'),
+  ('h2.settings',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\settings.py',
+   'PYMODULE'),
+  ('h2.exceptions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\exceptions.py',
+   'PYMODULE'),
+  ('h2.connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\connection.py',
+   'PYMODULE'),
+  ('h2.windows',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\windows.py',
+   'PYMODULE'),
+  ('h2.utilities',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\utilities.py',
+   'PYMODULE'),
+  ('h2.stream',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\stream.py',
+   'PYMODULE'),
+  ('h2.frame_buffer',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\frame_buffer.py',
+   'PYMODULE'),
+  ('h2.config',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2\\config.py',
+   'PYMODULE'),
+  ('urllib3._collections',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\_collections.py',
+   'PYMODULE'),
+  ('urllib3._base_connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\_base_connection.py',
+   'PYMODULE'),
+  ('urllib3.connectionpool',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\connectionpool.py',
+   'PYMODULE'),
+  ('urllib3.util.proxy',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\proxy.py',
+   'PYMODULE'),
+  ('urllib3._request_methods',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\_request_methods.py',
+   'PYMODULE'),
+  ('urllib3.util.response',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\response.py',
+   'PYMODULE'),
+  ('urllib3.util.request',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\request.py',
+   'PYMODULE'),
+  ('urllib3.util.connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\util\\connection.py',
    'PYMODULE'),
   ('__future__',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\__future__.py',
    'PYMODULE'),
-  ('urllib3.util.retry',
+  ('urllib3.filepost',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\retry.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\filepost.py',
    'PYMODULE'),
-  ('urllib3.util',
+  ('urllib3.fields',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\util\\__init__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\fields.py',
    'PYMODULE'),
-  ('urllib3.response',
+  ('requests.api',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\response.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\api.py',
+   'PYMODULE'),
+  ('requests.sessions',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\sessions.py',
+   'PYMODULE'),
+  ('requests.adapters',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\adapters.py',
+   'PYMODULE'),
+  ('urllib3.contrib.socks',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\socks.py',
    'PYMODULE'),
   ('urllib3.poolmanager',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\poolmanager.py',
-   'PYMODULE'),
-  ('requests._internal_utils',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\_internal_utils.py',
-   'PYMODULE'),
-  ('requests.hooks',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\hooks.py',
-   'PYMODULE'),
-  ('requests.cookies',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\cookies.py',
-   'PYMODULE'),
-  ('requests.auth',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\auth.py',
-   'PYMODULE'),
-  ('requests.models',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\models.py',
-   'PYMODULE'),
-  ('requests.packages',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\packages.py',
-   'PYMODULE'),
-  ('requests.utils',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\utils.py',
-   'PYMODULE'),
-  ('requests.certs',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\certs.py',
-   'PYMODULE'),
-  ('certifi',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\certifi\\__init__.py',
-   'PYMODULE'),
-  ('certifi.core',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\certifi\\core.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\poolmanager.py',
    'PYMODULE'),
   ('requests.__version__',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\__version__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\__version__.py',
+   'PYMODULE'),
+  ('requests.utils',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\utils.py',
+   'PYMODULE'),
+  ('requests.certs',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\certs.py',
+   'PYMODULE'),
+  ('certifi',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\certifi\\__init__.py',
+   'PYMODULE'),
+  ('certifi.core',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\certifi\\core.py',
+   'PYMODULE'),
+  ('requests.packages',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\packages.py',
    'PYMODULE'),
   ('urllib3.exceptions',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\exceptions.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\exceptions.py',
    'PYMODULE'),
   ('cryptography',
    'C:\\Users\\Lawrence '
@@ -974,63 +1370,71 @@
    'PYMODULE'),
   ('urllib3.contrib.pyopenssl',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\contrib\\pyopenssl.py',
-   'PYMODULE'),
-  ('urllib3.packages.backports.makefile',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\packages\\backports\\makefile.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\pyopenssl.py',
    'PYMODULE'),
   ('urllib3.contrib',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\contrib\\__init__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\__init__.py',
    'PYMODULE'),
   ('charset_normalizer',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\__init__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\__init__.py',
    'PYMODULE'),
   ('charset_normalizer.version',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\version.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\version.py',
    'PYMODULE'),
   ('charset_normalizer.utils',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\utils.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\utils.py',
    'PYMODULE'),
   ('charset_normalizer.constant',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\constant.py',
-   'PYMODULE'),
-  ('charset_normalizer.assets',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\assets\\__init__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\constant.py',
    'PYMODULE'),
   ('charset_normalizer.models',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\models.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\models.py',
    'PYMODULE'),
   ('charset_normalizer.cd',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\cd.py',
-   'PYMODULE'),
-  ('charset_normalizer.md',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\md.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\cd.py',
    'PYMODULE'),
   ('charset_normalizer.legacy',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\legacy.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\legacy.py',
    'PYMODULE'),
   ('charset_normalizer.api',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\charset_normalizer\\api.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\api.py',
    'PYMODULE'),
   ('requests.exceptions',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\requests\\exceptions.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\requests\\exceptions.py',
    'PYMODULE'),
   ('urllib3',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\urllib3\\__init__.py',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\__init__.py',
+   'PYMODULE'),
+  ('urllib3.contrib.emscripten',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\emscripten\\__init__.py',
+   'PYMODULE'),
+  ('urllib3.contrib.emscripten.connection',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\emscripten\\connection.py',
+   'PYMODULE'),
+  ('urllib3.contrib.emscripten.response',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\emscripten\\response.py',
+   'PYMODULE'),
+  ('urllib3.contrib.emscripten.request',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\emscripten\\request.py',
+   'PYMODULE'),
+  ('urllib3.contrib.emscripten.fetch',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\urllib3\\contrib\\emscripten\\fetch.py',
    'PYMODULE'),
   ('datetime',
    'C:\\Users\\Lawrence '
@@ -1056,78 +1460,86 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\json\\scanner.py',
    'PYMODULE')],
- [('python311.dll',
+ [('PyQt6\\sip.cp311-win_amd64.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\sip.cp311-win_amd64.pyd',
+   'BINARY'),
+  ('python311.dll',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\python311.dll',
    'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\platforms\\qwindows.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qwindows.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qgif.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qgif.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qsvg.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qsvg.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qwbmp.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qwbmp.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qjpeg.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qjpeg.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qpdf.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qpdf.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qico.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qico.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qtga.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qtga.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qtiff.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qtiff.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\platforms\\qoffscreen.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qoffscreen.dll',
-   'BINARY'),
   ('PyQt6\\Qt6\\plugins\\imageformats\\qicns.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qicns.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\generic\\qtuiotouchplugin.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\generic\\qtuiotouchplugin.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qicns.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\plugins\\iconengines\\qsvgicon.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\iconengines\\qsvgicon.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\plugins\\imageformats\\qwebp.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qwebp.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\iconengines\\qsvgicon.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\plugins\\platforms\\qminimal.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qminimal.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qminimal.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qpdf.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qpdf.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qsvg.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qsvg.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\platforms\\qwindows.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qwindows.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qgif.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qgif.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qjpeg.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qjpeg.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qico.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qico.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qtiff.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qtiff.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qwbmp.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qwbmp.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qwebp.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qwebp.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\imageformats\\qtga.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\imageformats\\qtga.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\generic\\qtuiotouchplugin.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\generic\\qtuiotouchplugin.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\plugins\\platforms\\qoffscreen.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\platforms\\qoffscreen.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\bin\\opengl32sw.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\opengl32sw.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\opengl32sw.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\plugins\\styles\\qmodernwindowsstyle.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\plugins\\styles\\qmodernwindowsstyle.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\plugins\\styles\\qmodernwindowsstyle.dll',
    'BINARY'),
+  ('select.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\select.pyd',
+   'EXTENSION'),
   ('_decimal.pyd',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_decimal.pyd',
@@ -1135,6 +1547,10 @@
   ('_hashlib.pyd',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_hashlib.pyd',
+   'EXTENSION'),
+  ('unicodedata.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\unicodedata.pyd',
    'EXTENSION'),
   ('_lzma.pyd',
    'C:\\Users\\Lawrence '
@@ -1144,141 +1560,113 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_bz2.pyd',
    'EXTENSION'),
-  ('unicodedata.pyd',
+  ('_multiprocessing.pyd',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\unicodedata.pyd',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_multiprocessing.pyd',
    'EXTENSION'),
-  ('PyQt6\\QtGui.pyd',
+  ('pyexpat.pyd',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\QtGui.pyd',
-   'EXTENSION'),
-  ('PyQt6\\sip.cp311-win_amd64.pyd',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\sip.cp311-win_amd64.pyd',
-   'EXTENSION'),
-  ('PyQt6\\QtCore.pyd',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\QtCore.pyd',
-   'EXTENSION'),
-  ('PyQt6\\QtWidgets.pyd',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\QtWidgets.pyd',
-   'EXTENSION'),
-  ('select.pyd',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\select.pyd',
-   'EXTENSION'),
-  ('_socket.pyd',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_socket.pyd',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\pyexpat.pyd',
    'EXTENSION'),
   ('_ssl.pyd',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_ssl.pyd',
    'EXTENSION'),
+  ('_ctypes.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_ctypes.pyd',
+   'EXTENSION'),
   ('_queue.pyd',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_queue.pyd',
    'EXTENSION'),
+  ('PyQt6\\QtGui.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\QtGui.pyd',
+   'EXTENSION'),
+  ('PyQt6\\QtCore.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\QtCore.pyd',
+   'EXTENSION'),
+  ('PyQt6\\QtWidgets.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\QtWidgets.pyd',
+   'EXTENSION'),
+  ('_socket.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_socket.pyd',
+   'EXTENSION'),
+  ('_overlapped.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_overlapped.pyd',
+   'EXTENSION'),
+  ('_asyncio.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\_asyncio.pyd',
+   'EXTENSION'),
   ('_cffi_backend.cp311-win_amd64.pyd',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\_cffi_backend.cp311-win_amd64.pyd',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\_cffi_backend.cp311-win_amd64.pyd',
    'EXTENSION'),
   ('cryptography\\hazmat\\bindings\\_rust.pyd',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography\\hazmat\\bindings\\_rust.pyd',
    'EXTENSION'),
-  ('api-ms-win-crt-conio-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-conio-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-string-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-string-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-filesystem-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-filesystem-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-time-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-time-l1-1-0.dll',
-   'BINARY'),
+  ('charset_normalizer\\md__mypyc.cp311-win_amd64.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\md__mypyc.cp311-win_amd64.pyd',
+   'EXTENSION'),
+  ('charset_normalizer\\md.cp311-win_amd64.pyd',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\charset_normalizer\\md.cp311-win_amd64.pyd',
+   'EXTENSION'),
   ('VCRUNTIME140.dll',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\VCRUNTIME140.dll',
    'BINARY'),
-  ('api-ms-win-crt-heap-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-heap-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-locale-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-locale-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-convert-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-convert-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-environment-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-environment-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-stdio-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-stdio-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-process-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-process-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-math-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-math-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-runtime-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-runtime-l1-1-0.dll',
-   'BINARY'),
   ('PyQt6\\Qt6\\bin\\Qt6Core.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Core.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Core.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\bin\\Qt6Gui.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Gui.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\bin\\Qt6Svg.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Svg.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\bin\\Qt6Pdf.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Pdf.dll',
+   'BINARY'),
+  ('PyQt6\\Qt6\\bin\\MSVCP140.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140.dll',
    'BINARY'),
   ('VCRUNTIME140_1.dll',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\VCRUNTIME140_1.dll',
    'BINARY'),
-  ('PyQt6\\Qt6\\bin\\MSVCP140.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\bin\\Qt6Gui.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Gui.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\bin\\Qt6Svg.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Svg.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\bin\\Qt6Pdf.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Pdf.dll',
-   'BINARY'),
-  ('api-ms-win-crt-utility-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-crt-utility-l1-1-0.dll',
-   'BINARY'),
   ('PyQt6\\Qt6\\bin\\Qt6Network.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Network.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Network.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\bin\\Qt6Widgets.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Widgets.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\Qt6Widgets.dll',
    'BINARY'),
   ('libcrypto-3.dll',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\libcrypto-3.dll',
+   'BINARY'),
+  ('libssl-3.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\libssl-3.dll',
+   'BINARY'),
+  ('libffi-8.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\libffi-8.dll',
    'BINARY'),
   ('python3.dll',
    'C:\\Users\\Lawrence '
@@ -1286,509 +1674,421 @@
    'BINARY'),
   ('PyQt6\\Qt6\\bin\\MSVCP140_2.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140_2.dll',
-   'BINARY'),
-  ('libssl-3.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\DLLs\\libssl-3.dll',
-   'BINARY'),
-  ('ucrtbase.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\ucrtbase.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\bin\\VCRUNTIME140_1.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\VCRUNTIME140_1.dll',
-   'BINARY'),
-  ('api-ms-win-core-synch-l1-2-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-synch-l1-2-0.dll',
-   'BINARY'),
-  ('PyQt6\\Qt6\\bin\\VCRUNTIME140.dll',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\VCRUNTIME140.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140_2.dll',
    'BINARY'),
   ('PyQt6\\Qt6\\bin\\MSVCP140_1.dll',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140_1.dll',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\MSVCP140_1.dll',
    'BINARY'),
-  ('api-ms-win-core-util-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-util-l1-1-0.dll',
+  ('PyQt6\\Qt6\\bin\\VCRUNTIME140_1.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\VCRUNTIME140_1.dll',
    'BINARY'),
-  ('api-ms-win-core-memory-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-memory-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-heap-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-heap-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-console-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-console-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-string-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-string-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-debug-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-debug-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l2-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-file-l2-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-localization-l1-2-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-localization-l1-2-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-synch-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-synch-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-file-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-handle-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-handle-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-errorhandling-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-errorhandling-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-rtlsupport-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-rtlsupport-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-interlocked-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-interlocked-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-timezone-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-timezone-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-processenvironment-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-processenvironment-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l1-2-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-file-l1-2-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-profile-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-profile-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-libraryloader-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-libraryloader-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-fibers-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-fibers-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-processthreads-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-processthreads-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-datetime-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-datetime-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-sysinfo-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-sysinfo-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-processthreads-l1-1-1.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-processthreads-l1-1-1.dll',
-   'BINARY'),
-  ('api-ms-win-core-namedpipe-l1-1-0.dll',
-   'C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance '
-   'Toolkit\\api-ms-win-core-namedpipe-l1-1-0.dll',
+  ('PyQt6\\Qt6\\bin\\VCRUNTIME140.dll',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\bin\\VCRUNTIME140.dll',
    'BINARY')],
  [],
  [],
- [('PyQt6\\Qt6\\translations\\qt_help_sl.qm',
+ [('PyQt6\\Qt6\\translations\\qt_de.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_sl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_sv.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_sv.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_pl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_pl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_hr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_hr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_hr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_hr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_zh_CN.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_zh_CN.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_bg.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_bg.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_sk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_sk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_pt_BR.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_pt_BR.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_nl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_nl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_gd.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_gd.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_uk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_uk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_it.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_it.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_zh_TW.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_zh_TW.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_de.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_de.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_en.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_en.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_gl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_gl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_nn.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_nn.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_pl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_pl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_hr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_hr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_it.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_it.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_lv.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_lv.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_ko.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ko.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ka.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ka.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_bg.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_bg.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_ja.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ja.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_pt_BR.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_pt_BR.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_tr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_tr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ja.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ja.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_pt_BR.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_pt_BR.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_ka.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ka.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_es.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_es.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_da.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_da.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_nl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_nl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_tr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_tr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_ru.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ru.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_pt_PT.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_pt_PT.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ru.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ru.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_nn.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_nn.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_fr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_fr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_cs.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_cs.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ar.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ar.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_fi.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_fi.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_zh_TW.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_zh_TW.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ca.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ca.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_da.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_da.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_ca.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ca.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_en.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_en.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_de.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_de.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_hu.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_hu.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_zh_CN.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_zh_CN.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_fa.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fa.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_sk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_sk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ka.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ka.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_hu.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_hu.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_lv.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_lv.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ar.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ar.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_en.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_en.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_nl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_nl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_sk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_sk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_cs.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_cs.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ko.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ko.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_bg.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_bg.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ru.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ru.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_fa.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_fa.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_pl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_pl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_da.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_da.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_tr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_tr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_it.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_it.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_de.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qt_he.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_he.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_he.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_hu.qm',
+  ('PyQt6\\Qt6\\translations\\qt_help_sl.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_hu.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_sl.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_cs.qm',
+  ('PyQt6\\Qt6\\translations\\qt_es.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_cs.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_es.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_es.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_es.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qt_help_ar.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ar.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ar.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_ko.qm',
+  ('PyQt6\\Qt6\\translations\\qt_ja.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_ko.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ja.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_zh_TW.qm',
+  ('PyQt6\\Qt6\\translations\\qtbase_sv.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_zh_TW.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_sv.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_zh_CN.qm',
+  ('PyQt6\\Qt6\\translations\\qt_pl.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_zh_CN.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_pl.qm',
    'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_de.qm',
+  ('PyQt6\\Qt6\\translations\\qt_help_bg.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_de.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_bg.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qtbase_nn.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_nn.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_uk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_uk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_uk.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_uk.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_he.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_he.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ca.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ca.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_gd.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_gd.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_help_fr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_fr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_fr.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fr.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qtbase_ja.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ja.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_gl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_gl.qm',
-   'DATA'),
-  ('PyQt6\\Qt6\\translations\\qt_sl.qm',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_sl.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_nn.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qtbase_es.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_es.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_es.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_gl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_gl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_he.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_he.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_nl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_nl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_ko.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ko.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_it.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_it.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_de.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_de.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_hu.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_hu.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_sl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_sl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_sv.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_sv.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_zh_TW.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_zh_TW.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_ru.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ru.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_pt_BR.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_pt_BR.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_gl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_gl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_en.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_en.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_hr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_hr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_zh_TW.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_zh_TW.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_it.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_it.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_nn.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_nn.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_cs.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_cs.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_bg.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_bg.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_lg.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_lg.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_hr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_hr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ar.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ar.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_zh_TW.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_zh_TW.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_ja.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ja.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_nl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_nl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_fr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_fr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_ca.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ca.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ka.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ka.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_fa.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_fa.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_pt_PT.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_pt_PT.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_tr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_tr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_da.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_da.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_hu.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_hu.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_en.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_en.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_uk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_uk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_ka.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ka.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_pt_BR.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_pt_BR.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ja.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ja.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_fi.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_fi.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_hu.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_hu.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_tr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_tr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_uk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_uk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_da.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_da.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_ru.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ru.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_gd.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_gd.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_nl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_nl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_zh_CN.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_zh_CN.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qtbase_fi.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fi.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fi.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_pl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_pl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_lv.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_lv.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_sk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_sk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_pt_BR.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_pt_BR.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_de.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_de.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_nn.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_nn.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_lv.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_lv.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_fr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_fr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_fa.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fa.qm',
    'DATA'),
   ('PyQt6\\Qt6\\translations\\qt_lt.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\PyQt6\\Qt6\\translations\\qt_lt.qm',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_lt.qm',
    'DATA'),
-  ('certifi\\py.typed',
+  ('PyQt6\\Qt6\\translations\\qtbase_it.qm',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\certifi\\py.typed',
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_it.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_sk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_sk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_es.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_es.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_ar.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ar.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_lg.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_lg.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_sk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_sk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_ka.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_ka.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_gd.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_gd.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_tr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_tr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_cs.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_cs.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_da.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_da.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_ko.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ko.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_sv.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_sv.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_uk.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_uk.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ca.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ca.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_bg.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_bg.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_en.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_en.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ko.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ko.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_ru.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_ru.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_hr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_hr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_zh_CN.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_zh_CN.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_pl.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_pl.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_cs.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_cs.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_ca.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_ca.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qtbase_fr.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qtbase_fr.qm',
+   'DATA'),
+  ('PyQt6\\Qt6\\translations\\qt_help_zh_CN.qm',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\PyQt6\\Qt6\\translations\\qt_help_zh_CN.qm',
    'DATA'),
   ('certifi\\cacert.pem',
    'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\certifi\\cacert.pem',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\certifi\\cacert.pem',
+   'DATA'),
+  ('certifi\\py.typed',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\certifi\\py.typed',
+   'DATA'),
+  ('cryptography-41.0.7.dist-info\\LICENSE.BSD',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\LICENSE.BSD',
+   'DATA'),
+  ('cryptography-41.0.7.dist-info\\top_level.txt',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\top_level.txt',
    'DATA'),
   ('cryptography-41.0.7.dist-info\\METADATA',
    'C:\\Users\\Lawrence '
@@ -1802,36 +2102,147 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\LICENSE.APACHE',
    'DATA'),
+  ('cryptography-41.0.7.dist-info\\LICENSE',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\LICENSE',
+   'DATA'),
   ('cryptography-41.0.7.dist-info\\REQUESTED',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\REQUESTED',
-   'DATA'),
-  ('cryptography-41.0.7.dist-info\\LICENSE.BSD',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\LICENSE.BSD',
    'DATA'),
   ('cryptography-41.0.7.dist-info\\INSTALLER',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\INSTALLER',
    'DATA'),
-  ('cryptography-41.0.7.dist-info\\top_level.txt',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\top_level.txt',
-   'DATA'),
-  ('cryptography-41.0.7.dist-info\\LICENSE',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\LICENSE',
-   'DATA'),
   ('cryptography-41.0.7.dist-info\\RECORD',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cryptography-41.0.7.dist-info\\RECORD',
    'DATA'),
-  ('base_library.zip',
+  ('h2-4.3.0.dist-info\\top_level.txt',
    'C:\\Users\\Lawrence '
-   'Thomas\\Desktop\\Leaderboard\\Receiver\\Leaderboard-Receiver\\Client\\build\\Lap '
-   'Time Receiver\\base_library.zip',
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\top_level.txt',
+   'DATA'),
+  ('h2-4.3.0.dist-info\\RECORD',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\RECORD',
+   'DATA'),
+  ('h2-4.3.0.dist-info\\INSTALLER',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\INSTALLER',
+   'DATA'),
+  ('h2-4.3.0.dist-info\\WHEEL',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\WHEEL',
+   'DATA'),
+  ('h2-4.3.0.dist-info\\licenses\\LICENSE',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('h2-4.3.0.dist-info\\METADATA',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Roaming\\Python\\Python311\\site-packages\\h2-4.3.0.dist-info\\METADATA',
+   'DATA'),
+  ('base_library.zip',
+   'C:\\Users\\Lawrence Thomas\\Documents\\Leaderboard '
+   'Software\\Receiver\\Client\\build\\Lap Time Receiver\\base_library.zip',
    'DATA')],
- [('encodings.zlib_codec',
+ [('collections.abc',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\collections\\abc.py',
+   'PYMODULE'),
+  ('collections',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\collections\\__init__.py',
+   'PYMODULE'),
+  ('functools',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\functools.py',
+   'PYMODULE'),
+  ('io',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\io.py',
+   'PYMODULE'),
+  ('traceback',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\traceback.py',
+   'PYMODULE'),
+  ('sre_constants',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_constants.py',
+   'PYMODULE'),
+  ('weakref',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\weakref.py',
+   'PYMODULE'),
+  ('sre_compile',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_compile.py',
+   'PYMODULE'),
+  ('posixpath',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\posixpath.py',
+   'PYMODULE'),
+  ('sre_parse',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_parse.py',
+   'PYMODULE'),
+  ('re._parser',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_parser.py',
+   'PYMODULE'),
+  ('re._constants',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_constants.py',
+   'PYMODULE'),
+  ('re._compiler',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_compiler.py',
+   'PYMODULE'),
+  ('re._casefix',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_casefix.py',
+   'PYMODULE'),
+  ('re',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\__init__.py',
+   'PYMODULE'),
+  ('copyreg',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copyreg.py',
+   'PYMODULE'),
+  ('abc',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\abc.py',
+   'PYMODULE'),
+  ('genericpath',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\genericpath.py',
+   'PYMODULE'),
+  ('locale',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\locale.py',
+   'PYMODULE'),
+  ('operator',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\operator.py',
+   'PYMODULE'),
+  ('reprlib',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\reprlib.py',
+   'PYMODULE'),
+  ('stat',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\stat.py',
+   'PYMODULE'),
+  ('types',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\types.py',
+   'PYMODULE'),
+  ('enum',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\enum.py',
+   'PYMODULE'),
+  ('encodings.zlib_codec',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\encodings\\zlib_codec.py',
    'PYMODULE'),
@@ -2319,133 +2730,37 @@
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\encodings\\__init__.py',
    'PYMODULE'),
-  ('ntpath',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ntpath.py',
-   'PYMODULE'),
-  ('sre_parse',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_parse.py',
-   'PYMODULE'),
-  ('posixpath',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\posixpath.py',
-   'PYMODULE'),
-  ('_collections_abc',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_collections_abc.py',
-   'PYMODULE'),
-  ('copyreg',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copyreg.py',
-   'PYMODULE'),
-  ('_weakrefset',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_weakrefset.py',
-   'PYMODULE'),
-  ('types',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\types.py',
-   'PYMODULE'),
-  ('genericpath',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\genericpath.py',
-   'PYMODULE'),
-  ('locale',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\locale.py',
-   'PYMODULE'),
-  ('linecache',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\linecache.py',
-   'PYMODULE'),
-  ('io',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\io.py',
-   'PYMODULE'),
-  ('codecs',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\codecs.py',
-   'PYMODULE'),
-  ('re._parser',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_parser.py',
-   'PYMODULE'),
-  ('re._constants',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_constants.py',
-   'PYMODULE'),
-  ('re._compiler',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_compiler.py',
-   'PYMODULE'),
-  ('re._casefix',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\_casefix.py',
-   'PYMODULE'),
-  ('re',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\re\\__init__.py',
-   'PYMODULE'),
-  ('weakref',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\weakref.py',
-   'PYMODULE'),
-  ('sre_compile',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_compile.py',
-   'PYMODULE'),
   ('keyword',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\keyword.py',
-   'PYMODULE'),
-  ('collections.abc',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\collections\\abc.py',
-   'PYMODULE'),
-  ('collections',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\collections\\__init__.py',
-   'PYMODULE'),
-  ('traceback',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\traceback.py',
-   'PYMODULE'),
-  ('sre_constants',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\sre_constants.py',
-   'PYMODULE'),
-  ('functools',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\functools.py',
-   'PYMODULE'),
-  ('enum',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\enum.py',
    'PYMODULE'),
   ('warnings',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\warnings.py',
    'PYMODULE'),
+  ('_collections_abc',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_collections_abc.py',
+   'PYMODULE'),
+  ('codecs',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\codecs.py',
+   'PYMODULE'),
+  ('ntpath',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\ntpath.py',
+   'PYMODULE'),
+  ('_weakrefset',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_weakrefset.py',
+   'PYMODULE'),
+  ('linecache',
+   'C:\\Users\\Lawrence '
+   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\linecache.py',
+   'PYMODULE'),
   ('heapq',
    'C:\\Users\\Lawrence '
    'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\heapq.py',
-   'PYMODULE'),
-  ('abc',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\abc.py',
-   'PYMODULE'),
-  ('operator',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\operator.py',
-   'PYMODULE'),
-  ('reprlib',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\reprlib.py',
-   'PYMODULE'),
-  ('stat',
-   'C:\\Users\\Lawrence '
-   'Thomas\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\stat.py',
    'PYMODULE'),
   ('os',
    'C:\\Users\\Lawrence '

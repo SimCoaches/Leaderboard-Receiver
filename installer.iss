@@ -1,6 +1,8 @@
 [Setup]
 AppName=Lap Time Receiver
 AppVersion=1.0
+AppPublisher=SimRacing Leaderboard
+AppPublisherURL=https://github.com
 DefaultDirName={autopf}\Lap Time Receiver
 DefaultGroupName=Lap Time Receiver
 OutputDir=Output
@@ -9,7 +11,14 @@ Compression=lzma
 SolidCompression=yes
 UninstallDisplayIcon={app}\Lap Time Receiver.exe
 UsePreviousAppDir=yes
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=admin
+LicenseFile=
+InfoBeforeFile=
+InfoAfterFile=
+SetupIconFile=
+WizardImageFile=
+WizardSmallImageFile=
 
 [Files]
 ; Main executable
@@ -27,6 +36,22 @@ Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Create empty lap_times.csv if it doesn't exist
 [Code]
+function InitializeSetup(): Boolean;
+var
+  VCRedistInstalled: Boolean;
+begin
+  // Check if Visual C++ 2015-2022 Redistributable (x64) is installed
+  // Note: PyInstaller bundles VCRUNTIME140.dll and related DLLs in the onefile executable,
+  // so the app should work even without the redistributable installed.
+  // This check is informational only.
+  VCRedistInstalled := RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64') or
+                       RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64') or
+                       RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\VisualStudio\15.0\VC\Runtimes\x64') or
+                       RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\WOW6432Node\Microsoft\VisualStudio\15.0\VC\Runtimes\x64');
+  
+  Result := True;
+end;
+
 procedure InitializeWizard;
 begin
 end;
@@ -34,8 +59,14 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then begin
+    // Create empty lap_times.csv if it doesn't exist
     if not FileExists(ExpandConstant('{app}\lap_times.csv')) then begin
       SaveStringToFile(ExpandConstant('{app}\lap_times.csv'), 'simulator_id,driver_name,lap_time,email,timestamp' + #13#10, False);
+    end;
+    
+    // Create default config.json if it doesn't exist
+    if not FileExists(ExpandConstant('{app}\config.json')) then begin
+      SaveStringToFile(ExpandConstant('{app}\config.json'), '{}', False);
     end;
   end;
 end;
