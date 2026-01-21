@@ -2,21 +2,12 @@
 
 
 import os
-
-# Manually add PyQt6.sip binary
-sip_binary = []
-try:
-    import PyQt6.sip
-    sip_path = PyQt6.sip.__file__
-    # Add the .pyd file to binaries, placing it in PyQt6 directory
-    sip_binary = [(sip_path, 'PyQt6')]
-except Exception as e:
-    print(f"Warning: Could not find PyQt6.sip: {e}")
+sip_path = os.path.join(os.environ['APPDATA'], 'Python', 'Python311', 'site-packages', 'PyQt6', 'sip.cp311-win_amd64.pyd')
 
 a = Analysis(
     ['gui_client_qt.py'],
     pathex=[],
-    binaries=sip_binary,
+    binaries=[(sip_path, 'PyQt6')],
     datas=[],
     hiddenimports=[],
     hookspath=[],
