@@ -19,6 +19,9 @@ from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QImage, QCursor, QIcon
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# Track connected simulators globally
+connected_simulators = {}  # {simulator_id: {'ip': ip, 'last_seen': timestamp, 'driver': name}}
+
 # Reusable stylesheet constants
 CONTROL_BUTTON_STYLE = """
     QPushButton {
@@ -222,58 +225,29 @@ class LeaderboardWindow(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Create a title bar for draggable mode
+        # Create a title bar with minimize and close buttons
         self.title_bar = QWidget(self)
         title_bar_layout = QHBoxLayout(self.title_bar)
         title_bar_layout.setContentsMargins(10, 5, 10, 5)
-        
-        # Add left/right position controls
-        self.left_button = QPushButton("◀", self)
-        self.left_button.setStyleSheet(CONTROL_BUTTON_STYLE)
-        self.left_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.left_button.clicked.connect(self.move_left)
-        self.left_button.setFixedSize(40, 40)
-        
-        self.right_button = QPushButton("▶", self)
-        self.right_button.setStyleSheet(CONTROL_BUTTON_STYLE)
-        self.right_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.right_button.clicked.connect(self.move_right)
-        self.right_button.setFixedSize(40, 40)
-        
-        # Add up and down buttons for vertical positioning
-        self.up_button = QPushButton("▲", self)
-        self.up_button.setStyleSheet(CONTROL_BUTTON_STYLE)
-        self.up_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.up_button.clicked.connect(self.move_up)
-        self.up_button.setFixedSize(40, 40)
-        
-        self.down_button = QPushButton("▼", self)
-        self.down_button.setStyleSheet(CONTROL_BUTTON_STYLE)
-        self.down_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.down_button.clicked.connect(self.move_down)
-        self.down_button.setFixedSize(40, 40)
-        
-        # Add mode toggle button
-        self.mode_button = QPushButton("🗗", self)
-        self.mode_button.setStyleSheet(CONTROL_BUTTON_STYLE)
-        self.mode_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.mode_button.clicked.connect(self.toggle_window_mode)
-        self.mode_button.setFixedSize(40, 40)
-        
+
+        # Minimize button
+        self.minimize_button = QPushButton("—", self)
+        self.minimize_button.setStyleSheet(CONTROL_BUTTON_STYLE)
+        self.minimize_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.minimize_button.clicked.connect(self.showMinimized)
+        self.minimize_button.setFixedSize(40, 40)
+
+        # Close button
         self.close_button = QPushButton("✕", self)
         self.close_button.setStyleSheet(CLOSE_BUTTON_STYLE)
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_button.clicked.connect(self.close)
         self.close_button.setFixedSize(40, 40)
-        
+
         title_bar_layout.addStretch()
-        title_bar_layout.addWidget(self.left_button)
-        title_bar_layout.addWidget(self.right_button)
-        title_bar_layout.addWidget(self.up_button)
-        title_bar_layout.addWidget(self.down_button)
-        title_bar_layout.addWidget(self.mode_button)
+        title_bar_layout.addWidget(self.minimize_button)
         title_bar_layout.addWidget(self.close_button)
-        
+
         self.title_bar.setFixedHeight(50)
         layout.addWidget(self.title_bar)
         
@@ -292,40 +266,39 @@ class LeaderboardWindow(QWidget):
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.setSpacing(0)
         
-        headers = ['Pos', 'Driver', 'Time']
+        headers = ['Position', 'Driver', 'Time']
         self.header_widget = QWidget()
         self.header_widget.setStyleSheet("""
             QWidget {
-                background-color: rgba(40, 40, 40, 220);
+                background-color: rgba(50, 50, 50, 220);
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;
             }
             QLabel {
+                background-color: transparent;
                 color: white;
                 font-size: 22px;
                 font-weight: bold;
                 padding: 10px 0px;
             }
         """)
-        
+
         # Set fixed header height for vertical mode
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
         if is_vertical:
             self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
-        
+
         header_layout = QHBoxLayout(self.header_widget)
-        header_layout.setContentsMargins(20, 4, 20, 4)
-        header_layout.setSpacing(40)
-        
-        widths = [
-            self.config.get('position_width', 80),
-            self.config.get('driver_width', 400),
-            self.config.get('time_width', 200)
-        ]
+        header_layout.setContentsMargins(30, 10, 30, 4)  # Equal margins left and right
+        header_layout.setSpacing(20)  # Reduced spacing between columns
+        header_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Balanced widths: Position and Time equal, Driver gets the rest
+        widths = [100, 484, 180]  # Position, Driver, Time
         for header, width in zip(headers, widths):
             label = QLabel(header)
             label.setFixedWidth(width)
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             header_layout.addWidget(label)
         
         panel_layout.addWidget(self.header_widget)
@@ -344,7 +317,7 @@ class LeaderboardWindow(QWidget):
             }
         """)
         self.entries_layout = QVBoxLayout(self.entries_widget)
-        self.entries_layout.setContentsMargins(20, 6, 20, 6)
+        self.entries_layout.setContentsMargins(20, 6, 20, 6)  # Match header outer margins
         self.entries_layout.setSpacing(self.vertical_spacing)  # Use configured vertical spacing
         panel_layout.addWidget(self.entries_widget)
         
@@ -359,9 +332,10 @@ class LeaderboardWindow(QWidget):
             # Remove borders in fullscreen mode
             self.header_widget.setStyleSheet("""
                 QWidget {
-                    background-color: rgba(40, 40, 40, 220);
+                    background-color: rgba(50, 50, 50, 220);
                 }
                 QLabel {
+                    background-color: transparent;
                     color: white;
                     font-size: 22px;
                     font-weight: bold;
@@ -378,32 +352,49 @@ class LeaderboardWindow(QWidget):
                     padding: 8px 0px;
                 }
             """)
-            
+
             # Show fullscreen
             self.showFullScreen()
-            
+
             # Get actual screen dimensions
             screen = QApplication.primaryScreen().geometry()
-            
-            # Position title bar controls at the top right of the actual screen
-            self.mode_button.setText("🗗")
-            self.title_bar.move(screen.width() - 200, 20)
-            
+
+            # Remove widgets from layout for absolute positioning
+            self.layout().removeWidget(self.title_bar)
+            self.layout().removeWidget(self.leaderboard_panel)
+
+            # Position title bar at very top right corner
+            self.title_bar.setParent(self)
+            self.title_bar.setFixedSize(110, 50)  # Fixed size for the two buttons
+            self.title_bar.move(screen.width() - 115, 5)
+            self.title_bar.raise_()
+            self.title_bar.show()
+
             # Position the leaderboard panel in the center
+            self.leaderboard_panel.setParent(self)
             self.center_leaderboard_with_offset()
+            self.leaderboard_panel.raise_()
             
             # Explicitly refresh background when going into fullscreen
             if hasattr(self, 'background_label') and self.config.get('background_image'):
                 QTimer.singleShot(50, lambda: self.set_background(self.config['background_image']))
         else:
-            # Regular windowed mode code remains the same
+            # Regular windowed mode - add widgets back to layout
+            layout = self.layout()
+            # Only add if not already in layout
+            if layout.indexOf(self.title_bar) == -1:
+                layout.insertWidget(0, self.title_bar)
+            if layout.indexOf(self.leaderboard_panel) == -1:
+                layout.addWidget(self.leaderboard_panel)
+
             self.header_widget.setStyleSheet("""
                 QWidget {
-                    background-color: rgba(40, 40, 40, 220);
+                    background-color: rgba(50, 50, 50, 220);
                     border-top-left-radius: 10px;
                     border-top-right-radius: 10px;
                 }
                 QLabel {
+                    background-color: transparent;
                     color: white;
                     font-size: 22px;
                     font-weight: bold;
@@ -424,14 +415,13 @@ class LeaderboardWindow(QWidget):
             """)
             self.showNormal()
             self.resize(self.leaderboard_panel.width() + 40, 800)  # Add padding
-            self.mode_button.setText("⛶")
             # Center the window on screen
             screen = QApplication.primaryScreen().geometry()
             self.move(
                 (screen.width() - self.width()) // 2,
                 (screen.height() - self.height()) // 2
             )
-            
+
             # Explicitly refresh background when going into windowed mode
             if hasattr(self, 'background_label') and self.config.get('background_image'):
                 self.set_background(self.config['background_image'])
@@ -664,28 +654,24 @@ class LeaderboardWindow(QWidget):
         """Create a reusable entry widget"""
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(40)
-        
-        # Use configured widths
-        widths = [
-            self.config.get('position_width', 80),
-            self.config.get('driver_width', 400),
-            self.config.get('time_width', 200)
-        ]
-        
+        layout.setContentsMargins(10, 0, 10, 0)  # Match header margins
+        layout.setSpacing(20)  # Match header spacing
+
+        # Use balanced widths matching header: Position and Time equal, Driver gets the rest
+        widths = [100, 484, 180]  # Position, Driver, Time
+
         # Add labels for position, driver name, and time
         position_label = QLabel()
         position_label.setFixedWidth(widths[0])
         position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         driver_label = QLabel()
         driver_label.setFixedWidth(widths[1])
         driver_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        
+
         time_label = QLabel()
         time_label.setFixedWidth(widths[2])
-        time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the time
         
         # Add the labels to the layout
         layout.addWidget(position_label)
@@ -715,96 +701,97 @@ class LeaderboardWindow(QWidget):
         return widget
     
     def _update_entry_widget(self, widget, entry, position):
-        """Update an existing entry widget"""
+        """Update an existing entry widget with clean, premium styling"""
         labels = widget.findChildren(QLabel)
-        
-        # Update widths in case config changed
-        widths = [
-            self.config.get('position_width', 80),
-            self.config.get('driver_width', 400),
-            self.config.get('time_width', 200)
-        ]
+
+        # Use balanced widths matching header: Position and Time equal, Driver gets the rest
+        widths = [100, 484, 180]  # Position, Driver, Time
         for label, width in zip(labels, widths):
             label.setFixedWidth(width)
-        
-        # Use consistent padding regardless of screen size
-        fixed_padding = 5  # Consistent padding for all elements
-        
-        if position <= 3:
-            # Special colors for top 3
-            pos_colors = ['gold', 'silver', '#cd7f32']
-            pos_color = pos_colors[position-1]
-            pos_names = ['1ST', '2ND', '3RD']
-            
-            # Get font sizes from config for positions 1-3
-            font_sizes = [
-                self.config.get('p1_font_size', 24),
-                self.config.get('p2_font_size', 22),
-                self.config.get('p3_font_size', 20)
-            ]
-            
 
-            
-            # Create special position indicator with position number and badge
-            position_text = f"{pos_names[position-1]}"
-            
-            # Apply special styling with colored background
+        # Premium color palette
+        gold = '#D4AF37'      # Elegant gold
+        silver = '#A8A9AD'    # Clean silver
+        bronze = '#CD7F32'    # Rich bronze
+        text_white = '#FFFFFF'
+        text_gray = '#B0B0B0'
+
+        # Font sizes - consistent across all positions for clean look
+        base_font_size = self.config.get('other_font_size', 22)
+
+        if position <= 3:
+            # Podium positions - clean accent colors, no chunky backgrounds
+            accent_colors = [gold, silver, bronze]
+            accent = accent_colors[position - 1]
+
+            # Position number - clean white text with colored left border accent
             labels[0].setStyleSheet(f"""
-                color: black; 
-                background-color: {pos_color}; 
-                font-size: {font_sizes[position-1]}px;
+                color: {accent};
+                background: transparent;
+                font-size: {base_font_size + 2}px;
                 font-weight: bold;
-                border-radius: 5px;
-                padding: {fixed_padding}px;
+                border-left: 4px solid {accent};
+                padding-left: 12px;
             """)
-            
-            # Apply larger font sizes to driver names for top 3 positions
+            labels[0].setText(str(position))
+
+            # Driver name - white text, clean
             labels[1].setStyleSheet(f"""
-                color: {pos_color}; 
-                font-size: {font_sizes[position-1]}px;
-                font-weight: bold;
+                color: {text_white};
+                background: transparent;
+                font-size: {base_font_size}px;
+                font-weight: normal;
             """)
-            
-            # Apply larger font sizes to times for top 3 positions
+
+            # Lap time - accent colored
             labels[2].setStyleSheet(f"""
-                color: {pos_color}; 
-                font-size: {font_sizes[position-1]}px;
+                color: {accent};
+                background: transparent;
+                font-size: {base_font_size}px;
                 font-weight: bold;
             """)
-            
-            # Position text for top 3 with special badges
-            labels[0].setText(position_text)
-            
-            # Add subtle background highlight for the top 3 rows
-            bg_opacity = [30, 25, 20][position-1]  # Decreasing opacity for 1st, 2nd, 3rd
+
+            # Subtle row background for podium
             widget.setStyleSheet(f"""
-                background-color: rgba({hex_to_rgb(pos_color)}, {bg_opacity});
-                border-radius: 8px;
-                margin: 1px;
+                background-color: rgba(255, 255, 255, 8);
+                border-bottom: 1px solid rgba(255, 255, 255, 15);
             """)
         else:
-            # Regular styling for positions 4-10
-            other_font_size = self.config.get('other_font_size', 18)
-            
+            # Positions 4-10 - clean, minimal styling
             labels[0].setStyleSheet(f"""
-                color: white; 
-                background: transparent; 
-                font-size: {other_font_size}px;
-                padding: {fixed_padding}px;
+                color: {text_gray};
+                background: transparent;
+                font-size: {base_font_size}px;
+                font-weight: normal;
+                border-left: 4px solid transparent;
+                padding-left: 12px;
             """)
-            labels[1].setStyleSheet(f"color: white; font-size: {other_font_size}px;")
-            labels[2].setStyleSheet(f"color: white; font-size: {other_font_size}px;")
-            
-            # Regular position for 4-10
             labels[0].setText(str(position))
-            
-            # Clear any background for regular positions
-            widget.setStyleSheet("")
-        
-        # Driver
+
+            labels[1].setStyleSheet(f"""
+                color: {text_white};
+                background: transparent;
+                font-size: {base_font_size}px;
+                font-weight: normal;
+            """)
+
+            labels[2].setStyleSheet(f"""
+                color: {text_gray};
+                background: transparent;
+                font-size: {base_font_size}px;
+                font-weight: normal;
+            """)
+
+            # Subtle separator line
+            widget.setStyleSheet(f"""
+                background: transparent;
+                border-bottom: 1px solid rgba(255, 255, 255, 10);
+            """)
+
+        # Driver name
         labels[1].setText(entry['driver_name'])
-        
-        # Time
+
+        # Time - clean format
         time_str = f"{int(entry['lap_time'] // 60):02d}:{entry['lap_time'] % 60:06.3f}"
         labels[2].setText(time_str)
 
@@ -822,10 +809,11 @@ class LeaderboardWindow(QWidget):
             
         header_style = f"""
             QWidget {{
-                background-color: rgba(40, 40, 40, {opacity});
+                background-color: rgba(50, 50, 50, {opacity});
                 border-radius: 10px;
             }}
             QLabel {{
+                background-color: transparent;
                 color: white;
                 font-size: {header_font_size}px;
                 font-weight: bold;
@@ -859,16 +847,14 @@ class LeaderboardWindow(QWidget):
 
     def update_column_widths(self):
         """Update all column widths based on current config"""
+        # Use balanced widths: Position and Time equal, Driver gets the rest
+        widths = [100, 484, 180]  # Position, Driver, Time
+
         # Update header widths
         header_labels = self.header_widget.findChildren(QLabel)
-        widths = [
-            self.config.get('position_width', 80),
-            self.config.get('driver_width', 400),
-            self.config.get('time_width', 200)
-        ]
         for label, width in zip(header_labels, widths):
             label.setFixedWidth(width)
-        
+
         # Update entry widths
         for entry_widget in self.entry_widgets:
             entry_labels = entry_widget.findChildren(QLabel)
@@ -977,12 +963,14 @@ class LeaderboardWindow(QWidget):
         """Update all font sizes based on current config"""
         # Update header font sizes
         header_font_size = self.config.get('header_font_size', 24)
+        opacity = self.config.get('opacity', 220)
         self.header_widget.setStyleSheet(f"""
             QWidget {{
-                background-color: rgba(40, 40, 40, {self.config.get('opacity', 220)});
+                background-color: rgba(50, 50, 50, {opacity});
                 {'' if self.is_fullscreen else 'border-top-left-radius: 10px; border-top-right-radius: 10px;'}
             }}
             QLabel {{
+                background-color: transparent;
                 color: white;
                 font-size: {header_font_size}px;
                 font-weight: bold;
@@ -1101,7 +1089,16 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 'email': driver_email,
                 'timestamp': datetime.now().isoformat()
             }
-            
+
+            # Track connected simulator
+            client_ip = self.client_address[0]
+            connected_simulators[simulator_id] = {
+                'ip': client_ip,
+                'last_seen': datetime.now(),
+                'driver': driver_name,
+                'last_lap': lap_time
+            }
+
             # Save to CSV
             csv_file = 'lap_times.csv'
             file_exists = os.path.exists(csv_file)
@@ -1120,7 +1117,23 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             print(f"Server error: {str(e)}")
             self.send_response(500)
             self.end_headers()
-            
+
+    def do_GET(self):
+        """Handle GET requests (test connection pings from senders)"""
+        client_ip = self.client_address[0]
+
+        # Track as connected simulator (ping only)
+        sim_id = f"ping_{client_ip.replace('.', '_')}"
+        connected_simulators[sim_id] = {
+            'ip': client_ip,
+            'last_seen': datetime.now(),
+            'driver': '(Testing connection)',
+            'last_lap': None
+        }
+
+        self.send_response(200)
+        self.end_headers()
+
     def log_message(self, format, *args):
         # Suppress logging to keep the console clean
         pass
@@ -1136,11 +1149,11 @@ class ControlWindow(QMainWindow):
             'refresh_interval': 5,
             'opacity': 220,
             'header_font_size': 24,
-            'entry_font_size': 20,
-            'p1_font_size': 24,    # First place font size
-            'p2_font_size': 22,    # Second place font size
-            'p3_font_size': 20,    # Third place font size
-            'other_font_size': 18, # Other positions font size
+            'entry_font_size': 30,
+            'p1_font_size': 30,    # First place font size
+            'p2_font_size': 30,    # Second place font size
+            'p3_font_size': 30,    # Third place font size
+            'other_font_size': 30, # Other positions font size
             'background_image': '',
             'fill_screen': False,   # Whether to fill the entire screen with background
             'position_width': 80,    # Default width for position column
@@ -1393,7 +1406,68 @@ class ControlWindow(QMainWindow):
         self.refresh_interval.setMaxLength(3)
         self.refresh_interval.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         general_layout.addWidget(self.refresh_interval, row_g, 1)
-        
+
+        # Connected Simulators section
+        row_g += 1
+        separator_sim = QFrame()
+        separator_sim.setFrameShape(QFrame.Shape.HLine)
+        separator_sim.setFrameShadow(QFrame.Shadow.Sunken)
+        separator_sim.setStyleSheet("background-color: #cccccc;")
+        separator_sim.setFixedHeight(1)
+        general_layout.addWidget(separator_sim, row_g, 0, 1, 2)
+
+        row_g += 1
+        # Create horizontal layout for label and Clear All button
+        sim_header_layout = QHBoxLayout()
+        sim_label = QLabel("Connected Simulators:")
+        sim_label.setStyleSheet("font-weight: bold;")
+        sim_header_layout.addWidget(sim_label)
+        sim_header_layout.addStretch()
+
+        clear_sim_btn = QPushButton("Clear All")
+        clear_sim_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+        """)
+        clear_sim_btn.clicked.connect(self.clear_simulators)
+        sim_header_layout.addWidget(clear_sim_btn)
+
+        sim_header_widget = QWidget()
+        sim_header_widget.setLayout(sim_header_layout)
+        general_layout.addWidget(sim_header_widget, row_g, 0, 1, 2)
+
+        row_g += 1
+        self.simulators_display = QLabel("No simulators connected")
+        self.simulators_display.setStyleSheet("""
+            QLabel {
+                background-color: #2d2d2d;
+                color: #00ff00;
+                font-family: Consolas, monospace;
+                font-size: 12px;
+                padding: 10px;
+                border-radius: 5px;
+                border: 1px solid #444444;
+            }
+        """)
+        self.simulators_display.setWordWrap(True)
+        self.simulators_display.setMinimumHeight(80)
+        general_layout.addWidget(self.simulators_display, row_g, 0, 1, 2)
+
+        # Timer to refresh connected simulators display
+        self.sim_refresh_timer = QTimer()
+        self.sim_refresh_timer.timeout.connect(self.update_simulators_display)
+        self.sim_refresh_timer.start(2000)  # Update every 2 seconds
+
         row_g += 1
         save_btn_general = QPushButton("Save Settings")
         save_btn_general.setStyleSheet("""
@@ -1678,38 +1752,46 @@ class ControlWindow(QMainWindow):
         else:
             self.config['orientation'] = 'horizontal'
             self.orientation_toggle.setText("Horizontal")
-        
+
         # Remove old aspect ratio settings
         self.config['use_tall_aspect'] = False
         self.config['use_1344_aspect'] = False
-        
+
         # Update the leaderboard window config and refresh
         if self.leaderboard_window:
             self.leaderboard_window.config['orientation'] = self.config['orientation']
             self.leaderboard_window.config['use_tall_aspect'] = False
             self.leaderboard_window.config['use_1344_aspect'] = False
-            
+
             # Load the correct offsets for the new orientation
             self.leaderboard_window._load_offsets_for_orientation()
-            
+
             # Update panel size based on orientation
             is_vertical = self.config['orientation'] == 'vertical'
             if is_vertical:
                 # 11 rows x 123px = 1353px
                 self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
             else:
+                # Horizontal mode - set width and allow height to be dynamic
                 panel_width = self.config.get('panel_width', 800)
+                self.leaderboard_window.leaderboard_panel.setMinimumHeight(0)
+                self.leaderboard_window.leaderboard_panel.setMaximumHeight(16777215)
                 self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
-            
+
             # Update column widths to reflect new panel size
             self.leaderboard_window.update_column_widths()
-            
+
+            # Force refresh of entries to apply new sizing
+            if self.network_thread and hasattr(self.network_thread, '_last_data'):
+                self.leaderboard_window.update_entries(self.network_thread._last_data)
+
             if self.config.get('background_image'):
                 self.leaderboard_window.set_background(self.config['background_image'])
-            # Re-center the leaderboard panel with the new offsets
+
+            # Re-apply fullscreen mode to re-center everything
             if self.leaderboard_window.is_fullscreen:
-                self.leaderboard_window.center_leaderboard_with_offset()
-        
+                self.leaderboard_window.set_window_mode(True)
+
         # Save config to persist orientation change
         with open('config.json', 'w') as f:
             json.dump(self.config, f)
@@ -1801,7 +1883,90 @@ class ControlWindow(QMainWindow):
         self.network_thread.leaderboard_updated.connect(self.update_leaderboard)
         self.network_thread.server_status_updated.connect(self.statusBar().showMessage)
         self.network_thread.start()
-        
+
+    def update_simulators_display(self):
+        """Update the connected simulators display"""
+        if not connected_simulators:
+            self.simulators_display.setText("No simulators connected")
+            self.simulators_display.setStyleSheet("""
+                QLabel {
+                    background-color: #2d2d2d;
+                    color: #888888;
+                    font-family: Consolas, monospace;
+                    font-size: 12px;
+                    padding: 10px;
+                    border-radius: 5px;
+                    border: 1px solid #444444;
+                }
+            """)
+            return
+
+        # Build display text
+        lines = []
+        now = datetime.now()
+        active_count = 0
+
+        for sim_id, info in connected_simulators.items():
+            time_diff = (now - info['last_seen']).total_seconds()
+
+            # Consider simulator "active" if seen in last 60 seconds
+            if time_diff < 60:
+                status = "ACTIVE"
+                color = "#00ff00"
+                active_count += 1
+            elif time_diff < 300:
+                status = "IDLE"
+                color = "#ffaa00"
+            else:
+                status = "OFFLINE"
+                color = "#ff4444"
+
+            # Format last lap time (handle None for ping-only connections)
+            lap_time = info.get('last_lap')
+            if lap_time is not None:
+                lap_str = f"{int(lap_time // 60):02d}:{lap_time % 60:06.3f}"
+            else:
+                lap_str = "None"
+
+            lines.append(f"Sim {sim_id} ({info['ip']}) - {status}")
+            lines.append(f"  Driver: {info['driver']}")
+            lines.append(f"  Last Lap: {lap_str}")
+
+        display_text = "\n".join(lines)
+        self.simulators_display.setText(display_text)
+
+        # Update color based on active simulators
+        if active_count > 0:
+            self.simulators_display.setStyleSheet("""
+                QLabel {
+                    background-color: #1a2d1a;
+                    color: #00ff00;
+                    font-family: Consolas, monospace;
+                    font-size: 12px;
+                    padding: 10px;
+                    border-radius: 5px;
+                    border: 1px solid #00aa00;
+                }
+            """)
+        else:
+            self.simulators_display.setStyleSheet("""
+                QLabel {
+                    background-color: #2d2d2d;
+                    color: #ffaa00;
+                    font-family: Consolas, monospace;
+                    font-size: 12px;
+                    padding: 10px;
+                    border-radius: 5px;
+                    border: 1px solid #444444;
+                }
+            """)
+
+    def clear_simulators(self):
+        """Clear all connected simulators from the list"""
+        global connected_simulators
+        connected_simulators.clear()
+        self.update_simulators_display()
+
     def toggle_leaderboard(self):
         if self.leaderboard_window:
             if self.leaderboard_window.isVisible():
@@ -1812,6 +1977,9 @@ class ControlWindow(QMainWindow):
                 self.leaderboard_window.activateWindow()
                 self.leaderboard_window.raise_()
                 self.show_leaderboard_btn.setText("Hide Leaderboard")
+                # Re-apply background image when showing (ensures it persists after restart)
+                if self.config.get('background_image'):
+                    QTimer.singleShot(100, lambda: self.leaderboard_window.set_background(self.config['background_image']))
             
     def update_leaderboard(self, data):
         if self.leaderboard_window:
