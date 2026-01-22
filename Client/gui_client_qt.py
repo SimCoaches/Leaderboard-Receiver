@@ -22,6 +22,89 @@ logger = logging.getLogger(__name__)
 # Track connected simulators globally
 connected_simulators = {}  # {simulator_id: {'ip': ip, 'last_seen': timestamp, 'driver': name}}
 
+# Discovery protocol constants
+DISCOVERY_PORT = 5001  # UDP port for discovery broadcasts
+DISCOVERY_REQUEST = b"LEADERBOARD_DISCOVER"
+DISCOVERY_RESPONSE_PREFIX = "LEADERBOARD_SERVER:"
+
+
+class DiscoveryResponder(threading.Thread):
+    """UDP Discovery Responder - allows simulators to find this receiver automatically.
+
+    Protocol:
+    - Listens for UDP broadcasts on DISCOVERY_PORT (5001)
+    - When it receives DISCOVERY_REQUEST ("LEADERBOARD_DISCOVER")
+    - Responds with "LEADERBOARD_SERVER:{ip}:{port}" to the sender
+
+    This allows simulators to find the leaderboard server without manual IP entry.
+    Works even when IPs change - as long as devices are on the same network.
+    """
+
+    def __init__(self, http_port, status_callback=None):
+        super().__init__(daemon=True)
+        self.http_port = http_port
+        self.status_callback = status_callback
+        self.running = False
+        self.socket = None
+
+    def run(self):
+        self.running = True
+        try:
+            # Create UDP socket
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            # Try to set SO_REUSEPORT if available (Linux/Mac)
+            try:
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except AttributeError:
+                pass  # Windows doesn't have SO_REUSEPORT
+
+            # Bind to discovery port on all interfaces
+            self.socket.bind(('', DISCOVERY_PORT))
+            self.socket.settimeout(1.0)  # 1 second timeout for clean shutdown
+
+            logger.warning(f"Discovery responder started on UDP port {DISCOVERY_PORT}")
+            if self.status_callback:
+                self.status_callback(f"Discovery active on port {DISCOVERY_PORT}")
+
+            while self.running:
+                try:
+                    data, addr = self.socket.recvfrom(1024)
+
+                    if data == DISCOVERY_REQUEST:
+                        # Get current IP and respond
+                        local_ip = get_local_ip()
+                        response = f"{DISCOVERY_RESPONSE_PREFIX}{local_ip}:{self.http_port}"
+                        self.socket.sendto(response.encode(), addr)
+                        logger.warning(f"Discovery: Responded to {addr[0]} with {response}")
+
+                except socket.timeout:
+                    continue  # Normal timeout, just loop again
+                except Exception as e:
+                    if self.running:  # Only log if we're still supposed to be running
+                        logger.warning(f"Discovery responder error: {e}")
+
+        except Exception as e:
+            logger.warning(f"Failed to start discovery responder: {e}")
+            if self.status_callback:
+                self.status_callback(f"Discovery failed: {e}")
+        finally:
+            if self.socket:
+                self.socket.close()
+
+    def stop(self):
+        self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+
+    def update_port(self, new_port):
+        """Update the HTTP port that we advertise"""
+        self.http_port = new_port
+
 # Reusable stylesheet constants
 CONTROL_BUTTON_STYLE = """
     QPushButton {
@@ -1371,7 +1454,12 @@ class ControlWindow(QMainWindow):
         self.server_status_label = QLabel("Server Status: Not Running")
         self.server_status_label.setStyleSheet("color: #666666;")
         general_layout.addWidget(self.server_status_label, row_g, 0, 1, 2)
-        
+
+        row_g += 1
+        self.discovery_status_label = QLabel("Discovery: Inactive")
+        self.discovery_status_label.setStyleSheet("color: #666666; font-style: italic;")
+        general_layout.addWidget(self.discovery_status_label, row_g, 0, 1, 2)
+
         row_g += 1
         self.server_toggle_btn = QPushButton("Start Server")
         self.server_toggle_btn.clicked.connect(self.toggle_server)
@@ -1991,7 +2079,14 @@ class ControlWindow(QMainWindow):
             self.http_server.shutdown()
             self.server_thread.join()
             delattr(self, 'http_server')
+
+            # Stop discovery responder
+            if hasattr(self, 'discovery_responder'):
+                self.discovery_responder.stop()
+                delattr(self, 'discovery_responder')
+
             self.server_status_label.setText("Server Status: Stopped")
+            self.discovery_status_label.setText("Discovery: Inactive")
             self.server_toggle_btn.setText("Start Server")
             self.statusBar().showMessage("Lap time server stopped")
         else:
@@ -2003,18 +2098,23 @@ class ControlWindow(QMainWindow):
                 self.server_thread = threading.Thread(target=self.http_server.serve_forever)
                 self.server_thread.daemon = True
                 self.server_thread.start()
-                
+
+                # Start UDP discovery responder for auto-discovery by simulators
+                self.discovery_responder = DiscoveryResponder(port)
+                self.discovery_responder.start()
+
                 # Update server URL with new port
                 local_ip = get_local_ip()
                 self.config['server_url'] = f'http://{local_ip}:{port}'
                 self.config['server_port'] = port  # Save port to config
                 self.server_url_entry.setText(self.config['server_url'])
-                
+
                 # Save config to persist port change
                 with open('config.json', 'w') as f:
                     json.dump(self.config, f)
-                
+
                 self.server_status_label.setText(f"Server Status: Running on port {port}")
+                self.discovery_status_label.setText(f"Discovery: Active (UDP {DISCOVERY_PORT})")
                 self.server_toggle_btn.setText("Stop Server")
                 self.statusBar().showMessage(f"Lap time server started on port {port}")
             except Exception as e:
@@ -2027,19 +2127,24 @@ class ControlWindow(QMainWindow):
             port = int(self.config.get('server_port', 5000))
             # Update port input field
             self.server_port_entry.setText(str(port))
-            
+
             server_address = ('', port)
             self.http_server = HTTPServer(server_address, LapTimeHandler)
             self.server_thread = threading.Thread(target=self.http_server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
-            
+
+            # Start UDP discovery responder for auto-discovery by simulators
+            self.discovery_responder = DiscoveryResponder(port)
+            self.discovery_responder.start()
+
             # Update server URL with initial port
             local_ip = get_local_ip()
             self.config['server_url'] = f'http://{local_ip}:{port}'
             self.server_url_entry.setText(self.config['server_url'])
-            
+
             self.server_status_label.setText(f"Server Status: Running on port {port}")
+            self.discovery_status_label.setText(f"Discovery: Active (UDP {DISCOVERY_PORT})")
             self.server_toggle_btn.setText("Stop Server")
             self.statusBar().showMessage(f"Lap time server started on port {port}")
         except Exception as e:
@@ -2059,6 +2164,8 @@ class ControlWindow(QMainWindow):
                 self.network_thread.stop()
             if hasattr(self, 'http_server'):
                 self.http_server.shutdown()
+            if hasattr(self, 'discovery_responder'):
+                self.discovery_responder.stop()
             if self.leaderboard_window:
                 self.leaderboard_window.close()
             event.accept()
