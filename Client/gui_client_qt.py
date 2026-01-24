@@ -610,7 +610,10 @@ class LeaderboardWindow(QWidget):
             # 11 rows x 123px = 1353px
             self.leaderboard_panel.setFixedSize(864, 1353)
         else:
-            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+            # Horizontal mode: wider panel for 1920x1080 landscape screens
+            # 11 rows x 55px = 605px height, width from config (default 1200)
+            panel_width = self.config.get('panel_width', 1200)
+            self.leaderboard_panel.setFixedSize(panel_width, 660)
         self.leaderboard_panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         panel_layout = QVBoxLayout(self.leaderboard_panel)
@@ -956,7 +959,7 @@ class LeaderboardWindow(QWidget):
             # Remove fixed height constraint on header for horizontal mode
             self.header_widget.setMinimumHeight(0)
             self.header_widget.setMaximumHeight(16777215)  # Qt's QWIDGETSIZE_MAX
-            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 800))
+            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 1200))
         
         # Efficiently handle widget recycling
         if data:
@@ -1219,7 +1222,7 @@ class LeaderboardWindow(QWidget):
             self.leaderboard_panel.setFixedSize(864, 1353)
         else:
             # Use configured width for horizontal orientation
-            panel_width = self.config.get('panel_width', 800)
+            panel_width = self.config.get('panel_width', 1200)
             self.leaderboard_panel.setFixedWidth(panel_width)
 
     # Add new methods for moving the leaderboard
@@ -1288,8 +1291,10 @@ class LeaderboardWindow(QWidget):
                 panel_width = 864
                 panel_height = 1353
             else:
-                panel_width = self.leaderboard_panel.width()
-                panel_height = self.leaderboard_panel.height()
+                # Horizontal mode: wider panel for landscape screens
+                panel_width = self.config.get('panel_width', 1200)
+                panel_height = 660
+                self.leaderboard_panel.setFixedSize(panel_width, panel_height)
             
             # Center panel horizontally with offset
             centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
@@ -1751,7 +1756,7 @@ class ControlWindow(QMainWindow):
             'position_width': 80,    # Default width for position column
             'driver_width': 400,     # Default width for driver name column
             'time_width': 200,       # Default width for time column
-            'panel_width': 800,      # Default width for entire panel
+            'panel_width': 1200,     # Default width for horizontal mode panel
             'horizontal_offset': 0,   # Legacy - kept for migration
             'vertical_offset': 0,   # Legacy - kept for migration
             'horizontal_offset_h': 0,   # Horizontal offset for horizontal mode
@@ -1820,8 +1825,8 @@ class ControlWindow(QMainWindow):
     
     def setup_ui(self):
         self.setWindowTitle("Leaderboard Control")
-        self.setGeometry(100, 100, 680, 920)
-        self.setFixedSize(680, 920)
+        self.setGeometry(100, 100, 720, 700)
+        self.setFixedSize(720, 700)
 
         # Set window icon
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
@@ -1840,29 +1845,29 @@ class ControlWindow(QMainWindow):
                 color: #cccccc;
             }
             QLabel {
-                font-size: 14px;
+                font-size: 13px;
                 color: #cccccc;
                 background-color: transparent;
             }
             QLineEdit, QComboBox {
-                padding: 8px 12px;
+                padding: 4px 8px;
                 border: 1px solid #3c3c3c;
                 border-radius: 4px;
                 background-color: #2d2d30;
                 color: #cccccc;
-                min-height: 32px;
+                min-height: 20px;
             }
             QLineEdit:focus, QComboBox:focus {
                 border-color: #007acc;
             }
             QPushButton {
-                padding: 10px 20px;
+                padding: 8px 16px;
                 background-color: #007acc;
                 color: white;
                 border: none;
                 border-radius: 4px;
-                font-size: 14px;
-                min-height: 36px;
+                font-size: 13px;
+                min-height: 32px;
             }
             QPushButton:hover {
                 background-color: #005a9e;
@@ -1875,7 +1880,7 @@ class ControlWindow(QMainWindow):
             QTabBar::tab {
                 background-color: #2d2d30;
                 color: #cccccc;
-                padding: 10px 20px;
+                padding: 8px 16px;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
                 border: 1px solid #3c3c3c;
@@ -1892,24 +1897,31 @@ class ControlWindow(QMainWindow):
                 border: none;
                 background-color: #252526;
             }
-            QFrame {
-                background-color: #252526;
-            }
         """)
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
-        # Tighter top-level spacing and margins
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
-        
+        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+
+        # Card styling
+        CARD_STYLE = """
+            QFrame {
+                background-color: #252526;
+                border: 1px solid #3c3c3c;
+                border-radius: 8px;
+            }
+        """
+        CARD_HEADER_STYLE = "font-weight: bold; color: #007acc; font-size: 12px; background: transparent; border: none;"
+
+        # Show Leaderboard button - prominent, full width
         self.show_leaderboard_btn = QPushButton("Show Leaderboard")
         self.show_leaderboard_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007acc;
                 font-size: 16px;
-                padding: 12px 20px;
+                padding: 14px 20px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -1919,48 +1931,110 @@ class ControlWindow(QMainWindow):
         self.show_leaderboard_btn.clicked.connect(self.toggle_leaderboard)
         layout.addWidget(self.show_leaderboard_btn)
 
-        # Event Management Section
-        event_frame = QFrame()
-        event_frame.setStyleSheet("""
-            QFrame {
-                background-color: #2d2d30;
-                border: 1px solid #3c3c3c;
-                border-radius: 6px;
-                padding: 8px;
-            }
-        """)
-        event_layout = QHBoxLayout(event_frame)
-        event_layout.setSpacing(12)
-        event_layout.setContentsMargins(12, 10, 12, 10)
+        # Cards row - horizontal layout
+        cards_layout = QHBoxLayout()
+        cards_layout.setSpacing(10)
 
-        event_label = QLabel("Event:")
-        event_label.setStyleSheet("font-weight: bold; color: #007acc; border: none; background: transparent;")
-        event_layout.addWidget(event_label)
+        # === SERVER CARD ===
+        server_card = QFrame()
+        server_card.setStyleSheet(CARD_STYLE)
+        server_card_layout = QVBoxLayout(server_card)
+        server_card_layout.setContentsMargins(12, 10, 12, 10)
+        server_card_layout.setSpacing(6)
 
-        export_btn = QPushButton("Export & End Event")
-        export_btn.setStyleSheet("""
+        server_header = QLabel("SERVER")
+        server_header.setStyleSheet(CARD_HEADER_STYLE)
+        server_card_layout.addWidget(server_header)
+
+        # Status with indicator dot
+        status_row = QHBoxLayout()
+        status_row.setSpacing(6)
+        self.server_status_dot = QLabel("\u25CF")  # Unicode circle
+        self.server_status_dot.setStyleSheet("color: #888888; font-size: 10px; background: transparent; border: none;")
+        status_row.addWidget(self.server_status_dot)
+        self.server_status_label = QLabel("Stopped")
+        self.server_status_label.setStyleSheet("color: #888888; font-size: 12px; background: transparent; border: none;")
+        status_row.addWidget(self.server_status_label)
+        status_row.addStretch()
+        server_card_layout.addLayout(status_row)
+
+        # Discovery status
+        self.discovery_status_label = QLabel("Discovery: Inactive")
+        self.discovery_status_label.setStyleSheet("color: #4ec9b0; font-size: 11px; font-style: italic; background: transparent; border: none;")
+        server_card_layout.addWidget(self.discovery_status_label)
+
+        # Port display
+        port_row = QHBoxLayout()
+        port_row.setSpacing(4)
+        port_label = QLabel("Port:")
+        port_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
+        port_row.addWidget(port_label)
+        self.server_port_display = QLabel(str(self.config.get('server_port', 5000)))
+        self.server_port_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
+        port_row.addWidget(self.server_port_display)
+        port_row.addStretch()
+        server_card_layout.addLayout(port_row)
+
+        server_card_layout.addStretch()
+
+        # Start/Stop button
+        self.server_toggle_btn = QPushButton("Start Server")
+        self.server_toggle_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4ec9b0;
                 color: #1e1e1e;
-                font-size: 13px;
-                padding: 8px 16px;
+                font-size: 12px;
+                padding: 6px 12px;
                 font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #3cb99f;
             }
         """)
-        export_btn.setToolTip("Save lap times to a named file and clear the leaderboard for the next event")
-        export_btn.clicked.connect(self.export_and_end_event)
-        event_layout.addWidget(export_btn)
+        self.server_toggle_btn.clicked.connect(self.toggle_server)
+        server_card_layout.addWidget(self.server_toggle_btn)
 
+        cards_layout.addWidget(server_card)
+
+        # === EVENT CARD ===
+        event_card = QFrame()
+        event_card.setStyleSheet(CARD_STYLE)
+        event_card_layout = QVBoxLayout(event_card)
+        event_card_layout.setContentsMargins(12, 10, 12, 10)
+        event_card_layout.setSpacing(6)
+
+        event_header = QLabel("EVENT")
+        event_header.setStyleSheet(CARD_HEADER_STYLE)
+        event_card_layout.addWidget(event_header)
+
+        event_card_layout.addStretch()
+
+        # Export & End button
+        export_btn = QPushButton("Export && End Event")
+        export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4ec9b0;
+                color: #1e1e1e;
+                font-size: 12px;
+                padding: 6px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3cb99f;
+            }
+        """)
+        export_btn.setToolTip("Save lap times to a named file and clear the leaderboard")
+        export_btn.clicked.connect(self.export_and_end_event)
+        event_card_layout.addWidget(export_btn)
+
+        # Clear Only button
         clear_btn = QPushButton("Clear Only")
         clear_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f48771;
                 color: #1e1e1e;
-                font-size: 13px;
-                padding: 8px 16px;
+                font-size: 12px;
+                padding: 6px 12px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -1969,144 +2043,90 @@ class ControlWindow(QMainWindow):
         """)
         clear_btn.setToolTip("Clear the leaderboard without saving")
         clear_btn.clicked.connect(self.clear_leaderboard)
-        event_layout.addWidget(clear_btn)
+        event_card_layout.addWidget(clear_btn)
 
-        event_layout.addStretch()
-        layout.addWidget(event_frame)
+        cards_layout.addWidget(event_card)
 
-        tabs = QTabWidget()
-        layout.addWidget(tabs)
-        
-        # General tab (server and app behavior)
-        general_tab = QWidget()
-        general_layout = QGridLayout(general_tab)
-        general_layout.setHorizontalSpacing(12)
-        general_layout.setVerticalSpacing(12)
-        general_layout.setContentsMargins(12, 12, 12, 12)
-        # Make inputs wider than labels so fields are easy to edit
-        general_layout.setColumnStretch(0, 1)
-        general_layout.setColumnStretch(1, 4)
-        general_layout.setColumnMinimumWidth(0, 160)
-        general_layout.setColumnMinimumWidth(1, 320)
-        
-        row_g = 0
-        # Display orientation at the very top - most important setting
-        orientation_label = QLabel("Display Orientation:")
-        orientation_label.setStyleSheet("font-weight: bold;")
-        general_layout.addWidget(orientation_label, row_g, 0)
-        orientation_widget_g = QWidget()
-        orientation_layout_g = QHBoxLayout(orientation_widget_g)
-        orientation_layout_g.setSpacing(10)
-        orientation_layout_g.setContentsMargins(0, 0, 0, 0)
-        self.orientation_toggle = QPushButton(self.config.get('orientation', 'horizontal').capitalize())
+        # === DISPLAY CARD ===
+        display_card = QFrame()
+        display_card.setStyleSheet(CARD_STYLE)
+        display_card_layout = QVBoxLayout(display_card)
+        display_card_layout.setContentsMargins(12, 10, 12, 10)
+        display_card_layout.setSpacing(6)
+
+        display_header = QLabel("DISPLAY")
+        display_header.setStyleSheet(CARD_HEADER_STYLE)
+        display_card_layout.addWidget(display_header)
+
+        # Resolution info
+        orientation = self.config.get('orientation', 'horizontal')
+        res_text = "1920x1080" if orientation == 'horizontal' else "1080x1920"
+        self.resolution_label = QLabel(res_text)
+        self.resolution_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
+        display_card_layout.addWidget(self.resolution_label)
+
+        display_card_layout.addStretch()
+
+        # Orientation toggle button
+        self.orientation_toggle = QPushButton(orientation.capitalize())
         self.orientation_toggle.setStyleSheet("""
             QPushButton {
                 background-color: #007acc;
-                padding: 8px 16px;
+                padding: 6px 12px;
                 color: white;
+                font-size: 12px;
                 font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #005a9e;
             }
         """)
-        self.orientation_toggle.setFixedWidth(140)
         self.orientation_toggle.clicked.connect(self.toggle_orientation)
-        orientation_layout_g.addWidget(self.orientation_toggle)
-        orientation_info = QLabel("(Vertical: 1080x1920, Horizontal: 1920x1080)")
-        orientation_info.setStyleSheet("color: #888888; font-style: italic;")
-        orientation_layout_g.addWidget(orientation_info)
-        orientation_layout_g.addStretch()
-        general_layout.addWidget(orientation_widget_g, row_g, 1)
-        
-        # Separator after orientation
-        row_g += 1
-        separator_orient = QFrame()
-        separator_orient.setFrameShape(QFrame.Shape.HLine)
-        separator_orient.setFrameShadow(QFrame.Shadow.Sunken)
-        separator_orient.setStyleSheet("background-color: #3c3c3c;")
-        separator_orient.setFixedHeight(1)
-        separator_orient.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        general_layout.addWidget(separator_orient, row_g, 0, 1, 2)
-        
-        row_g += 1
-        # Server URL (read-only)
-        url_label = QLabel("Server URL:")
-        url_label.setStyleSheet("font-weight: bold;")
-        general_layout.addWidget(url_label, row_g, 0)
+        display_card_layout.addWidget(self.orientation_toggle)
+
+        cards_layout.addWidget(display_card)
+
+        layout.addLayout(cards_layout)
+
+        # Hidden server URL entry (for compatibility)
         self.server_url_entry = QLineEdit(self.config.get('server_url', 'http://localhost:5000'))
-        self.server_url_entry.setReadOnly(True)
-        self.server_url_entry.setStyleSheet("""
-            QLineEdit {
-                background-color: #252526;
-                color: #888888;
-                border: 1px solid #3c3c3c;
-            }
-        """)
-        self.server_url_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        general_layout.addWidget(self.server_url_entry, row_g, 1)
-        
-        row_g += 1
-        self.server_status_label = QLabel("Server Status: Not Running")
-        self.server_status_label.setStyleSheet("color: #888888;")
-        general_layout.addWidget(self.server_status_label, row_g, 0, 1, 2)
+        self.server_url_entry.setVisible(False)
+        layout.addWidget(self.server_url_entry)
 
-        row_g += 1
-        self.discovery_status_label = QLabel("Discovery: Inactive")
-        self.discovery_status_label.setStyleSheet("color: #4ec9b0; font-style: italic;")
-        general_layout.addWidget(self.discovery_status_label, row_g, 0, 1, 2)
-
-        row_g += 1
-        self.server_toggle_btn = QPushButton("Start Server")
-        self.server_toggle_btn.clicked.connect(self.toggle_server)
-        general_layout.addWidget(self.server_toggle_btn, row_g, 0, 1, 2)
-        
-        row_g += 1
-        general_layout.addWidget(QLabel("Server Port:"), row_g, 0)
+        # Hidden server port entry (for compatibility with save_settings)
         self.server_port_entry = QLineEdit(str(self.config.get('server_port', 5000)))
-        self.server_port_entry.setMaxLength(5)
-        self.server_port_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        general_layout.addWidget(self.server_port_entry, row_g, 1)
-        
-        row_g += 1
-        server_info = QLabel("The server receives lap times from racing simulators.\nIt must be running to record new lap times.")
-        server_info.setStyleSheet("color: #888888; font-style: italic;")
-        server_info.setWordWrap(True)
-        general_layout.addWidget(server_info, row_g, 0, 1, 2)
+        self.server_port_entry.setVisible(False)
+        layout.addWidget(self.server_port_entry)
 
-        # Separator
-        row_g += 1
-        separator_g = QFrame()
-        separator_g.setFrameShape(QFrame.Shape.HLine)
-        separator_g.setFrameShadow(QFrame.Shadow.Sunken)
-        separator_g.setStyleSheet("background-color: #3c3c3c;")
-        separator_g.setFixedHeight(1)
-        separator_g.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        general_layout.addWidget(separator_g, row_g, 0, 1, 2)
-        
-        row_g += 1
-        general_layout.addWidget(QLabel("Refresh Interval:"), row_g, 0)
+        # Tabs for settings
+        tabs = QTabWidget()
+        layout.addWidget(tabs)
+
+        # === GENERAL TAB ===
+        general_tab = QWidget()
+        general_layout = QVBoxLayout(general_tab)
+        general_layout.setSpacing(8)
+        general_layout.setContentsMargins(12, 12, 12, 12)
+
+        # Refresh interval row
+        refresh_row = QHBoxLayout()
+        refresh_row.setSpacing(8)
+        refresh_label = QLabel("Refresh Interval (seconds):")
+        refresh_row.addWidget(refresh_label)
         self.refresh_interval = QLineEdit(str(self.config.get('refresh_interval', 5)))
         self.refresh_interval.setMaxLength(3)
-        self.refresh_interval.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        general_layout.addWidget(self.refresh_interval, row_g, 1)
+        self.refresh_interval.setFixedWidth(60)
+        refresh_row.addWidget(self.refresh_interval)
+        refresh_row.addStretch()
+        general_layout.addLayout(refresh_row)
 
-        # Connected Simulators section
-        row_g += 1
-        separator_sim = QFrame()
-        separator_sim.setFrameShape(QFrame.Shape.HLine)
-        separator_sim.setFrameShadow(QFrame.Shadow.Sunken)
-        separator_sim.setStyleSheet("background-color: #3c3c3c;")
-        separator_sim.setFixedHeight(1)
-        general_layout.addWidget(separator_sim, row_g, 0, 1, 2)
-
-        row_g += 1
-        # Create horizontal layout for label and Clear All button
-        sim_header_layout = QHBoxLayout()
-        sim_label = QLabel("Connected Simulators:")
-        sim_label.setStyleSheet("font-weight: bold; color: #cccccc;")
-        sim_header_layout.addWidget(sim_label)
-        sim_header_layout.addStretch()
+        # Connected Simulators section - always visible
+        sim_header_row = QHBoxLayout()
+        sim_header_row.setSpacing(8)
+        sim_label = QLabel("Connected Devices:")
+        sim_label.setStyleSheet("font-weight: bold; color: #007acc;")
+        sim_header_row.addWidget(sim_label)
+        sim_header_row.addStretch()
 
         clear_sim_btn = QPushButton("Clear All")
         clear_sim_btn.setStyleSheet("""
@@ -2115,290 +2135,203 @@ class ControlWindow(QMainWindow):
                 color: #1e1e1e;
                 border: none;
                 padding: 4px 12px;
-                border-radius: 4px;
+                border-radius: 3px;
                 font-size: 11px;
                 font-weight: bold;
+                min-height: 24px;
             }
             QPushButton:hover {
                 background-color: #d96a56;
             }
         """)
         clear_sim_btn.clicked.connect(self.clear_simulators)
-        sim_header_layout.addWidget(clear_sim_btn)
+        sim_header_row.addWidget(clear_sim_btn)
+        general_layout.addLayout(sim_header_row)
 
-        sim_header_widget = QWidget()
-        sim_header_widget.setLayout(sim_header_layout)
-        general_layout.addWidget(sim_header_widget, row_g, 0, 1, 2)
-
-        row_g += 1
-        self.simulators_display = QLabel("No simulators connected")
+        # Simulators display - always visible
+        self.simulators_display = QLabel("No devices connected\n\nDevices will appear here when they connect to the server.")
         self.simulators_display.setStyleSheet("""
             QLabel {
                 background-color: #252526;
-                color: #4ec9b0;
+                color: #888888;
                 font-family: Consolas, monospace;
                 font-size: 12px;
-                padding: 10px;
-                border-radius: 5px;
+                padding: 12px;
+                border-radius: 4px;
                 border: 1px solid #3c3c3c;
             }
         """)
         self.simulators_display.setWordWrap(True)
-        self.simulators_display.setMinimumHeight(80)
-        general_layout.addWidget(self.simulators_display, row_g, 0, 1, 2)
+        self.simulators_display.setMinimumHeight(100)
+        general_layout.addWidget(self.simulators_display, 1)  # stretch factor 1 to fill space
 
         # Timer to refresh connected simulators display
         self.sim_refresh_timer = QTimer()
         self.sim_refresh_timer.timeout.connect(self.update_simulators_display)
-        self.sim_refresh_timer.start(2000)  # Update every 2 seconds
+        self.sim_refresh_timer.start(2000)
 
-        row_g += 1
-        save_btn_general = QPushButton("Save Settings")
-        save_btn_general.setStyleSheet("""
-            QPushButton {
-                background-color: #007acc;
-                font-size: 14px;
-                padding: 10px;
-                margin-top: 10px;
-            }
-            QPushButton:hover {
-                background-color: #005a9e;
-            }
-        """)
-        save_btn_general.clicked.connect(self.save_settings)
-        general_layout.addWidget(save_btn_general, row_g, 0, 1, 2)
-        general_layout.setRowStretch(row_g + 1, 1)
         tabs.addTab(general_tab, "General")
 
-        # Appearance tab (visual controls) - two columns to reduce scrolling
+        # === APPEARANCE TAB ===
         appearance_tab = QWidget()
-        appearance_vlayout = QVBoxLayout(appearance_tab)
-        appearance_vlayout.setSpacing(8)
-        appearance_vlayout.setContentsMargins(12, 12, 12, 12)
+        appearance_main = QVBoxLayout(appearance_tab)
+        appearance_main.setSpacing(8)
+        appearance_main.setContentsMargins(12, 10, 12, 10)
 
-        columns_layout = QHBoxLayout()
-        columns_layout.setSpacing(24)
-
-        # Left column
-        left_widget = QWidget()
-        left_layout = QGridLayout(left_widget)
-        left_layout.setHorizontalSpacing(12)
-        left_layout.setVerticalSpacing(12)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setColumnStretch(0, 1)
-        left_layout.setColumnStretch(1, 3)
-        left_layout.setColumnMinimumWidth(0, 160)
-        left_layout.setColumnMinimumWidth(1, 320)
-
-        row_l = 0
-        left_layout.addWidget(QLabel("Box Opacity (0-255):"), row_l, 0)
-        self.opacity_entry = QLineEdit(str(self.config.get('opacity', 220)))
-        self.opacity_entry.setMaxLength(3)
-        self.opacity_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        left_layout.addWidget(self.opacity_entry, row_l, 1)
-
-        row_l += 1
-        left_layout.addWidget(QLabel("Background Image:"), row_l, 0)
-        bg_widget = QWidget()
-        bg_layout = QHBoxLayout(bg_widget)
-        bg_layout.setSpacing(10)
-        bg_layout.setContentsMargins(0, 0, 0, 0)
+        # Background row (full width)
+        bg_row = QHBoxLayout()
+        bg_row.setSpacing(8)
+        bg_label = QLabel("Background:")
+        bg_label.setFixedWidth(90)
+        bg_row.addWidget(bg_label)
         self.bg_path_entry = QLineEdit(self.config.get('background_image', ''))
         self.bg_path_entry.setReadOnly(True)
-        self.bg_path_entry.setMinimumWidth(300)
-        self.bg_path_entry.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        bg_layout.addWidget(self.bg_path_entry, 1)
+        self.bg_path_entry.setPlaceholderText("No image selected")
+        bg_row.addWidget(self.bg_path_entry, 1)
         browse_btn = QPushButton("Browse")
         browse_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3c3c3c;
-                padding: 8px 16px;
+                padding: 4px 12px;
+                min-height: 26px;
             }
             QPushButton:hover {
                 background-color: #505050;
             }
         """)
         browse_btn.clicked.connect(self.choose_background)
-        browse_btn.setMaximumWidth(120)
-        bg_layout.addWidget(browse_btn)
-        left_layout.addWidget(bg_widget, row_l, 1)
+        browse_btn.setFixedWidth(70)
+        bg_row.addWidget(browse_btn)
+        appearance_main.addLayout(bg_row)
 
-        # Fill mode toggle
-        row_l += 1
-        left_layout.addWidget(QLabel("Background Fill Mode:"), row_l, 0)
-        fill_widget = QWidget()
-        fill_layout = QHBoxLayout(fill_widget)
-        fill_layout.setSpacing(10)
-        fill_layout.setContentsMargins(0, 0, 0, 0)
-        self.fill_toggle = QPushButton(self.config.get('fill_screen', False) and "Fill Screen" or "Keep Aspect Ratio")
+        # Two columns layout
+        columns = QHBoxLayout()
+        columns.setSpacing(20)
+
+        # Helper function to create a setting row
+        def make_row(label_text, widget, label_width=100):
+            row = QHBoxLayout()
+            row.setSpacing(6)
+            label = QLabel(label_text)
+            label.setFixedWidth(label_width)
+            row.addWidget(label)
+            row.addWidget(widget)
+            row.addStretch()
+            return row
+
+        # Left column
+        left_col = QVBoxLayout()
+        left_col.setSpacing(12)
+
+        self.fill_toggle = QPushButton(self.config.get('fill_screen', False) and "Fill Screen" or "Keep Aspect")
         self.fill_toggle.setStyleSheet("""
             QPushButton {
                 background-color: #3c3c3c;
-                padding: 8px 16px;
+                padding: 4px 10px;
+                min-height: 26px;
             }
             QPushButton:hover {
                 background-color: #505050;
             }
         """)
-        self.fill_toggle.setFixedWidth(140)
+        self.fill_toggle.setFixedWidth(100)
         self.fill_toggle.clicked.connect(self.toggle_fill_mode)
-        fill_layout.addWidget(self.fill_toggle)
-        left_layout.addWidget(fill_widget, row_l, 1)
+        left_col.addLayout(make_row("Fill Mode:", self.fill_toggle))
 
-        # Header/Entry font sizes
-        row_l += 1
-        sep_l = QFrame()
-        sep_l.setFrameShape(QFrame.Shape.HLine)
-        sep_l.setFrameShadow(QFrame.Shadow.Sunken)
-        sep_l.setStyleSheet("background-color: #3c3c3c;")
-        sep_l.setFixedHeight(1)
-        sep_l.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        left_layout.addWidget(sep_l, row_l, 0, 1, 2)
+        self.opacity_entry = QLineEdit(str(self.config.get('opacity', 220)))
+        self.opacity_entry.setMaxLength(3)
+        self.opacity_entry.setFixedWidth(60)
+        left_col.addLayout(make_row("Box Opacity:", self.opacity_entry))
 
-        row_l += 1
-        left_layout.addWidget(QLabel("Header Font Size:"), row_l, 0)
-        self.header_font_size = QLineEdit(str(self.config.get('header_font_size', 24)))
+        self.header_font_size = QLineEdit(str(self.config.get('header_font_size', 30)))
         self.header_font_size.setMaxLength(2)
-        self.header_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        left_layout.addWidget(self.header_font_size, row_l, 1)
+        self.header_font_size.setFixedWidth(60)
+        left_col.addLayout(make_row("Header Font:", self.header_font_size))
 
-        row_l += 1
-        left_layout.addWidget(QLabel("Entry Font Size:"), row_l, 0)
-        self.entry_font_size = QLineEdit(str(self.config.get('entry_font_size', 20)))
+        self.entry_font_size = QLineEdit(str(self.config.get('entry_font_size', 30)))
         self.entry_font_size.setMaxLength(2)
-        self.entry_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        left_layout.addWidget(self.entry_font_size, row_l, 1)
+        self.entry_font_size.setFixedWidth(60)
+        left_col.addLayout(make_row("Entry Font:", self.entry_font_size))
+
+        self.p1_font_size = QLineEdit(str(self.config.get('p1_font_size', 30)))
+        self.p1_font_size.setMaxLength(2)
+        self.p1_font_size.setFixedWidth(60)
+        left_col.addLayout(make_row("1st Place:", self.p1_font_size))
+
+        self.p2_font_size = QLineEdit(str(self.config.get('p2_font_size', 30)))
+        self.p2_font_size.setMaxLength(2)
+        self.p2_font_size.setFixedWidth(60)
+        left_col.addLayout(make_row("2nd Place:", self.p2_font_size))
+
+        self.p3_font_size = QLineEdit(str(self.config.get('p3_font_size', 30)))
+        self.p3_font_size.setMaxLength(2)
+        self.p3_font_size.setFixedWidth(60)
+        left_col.addLayout(make_row("3rd Place:", self.p3_font_size))
+
+        left_col.addStretch()
+        columns.addLayout(left_col)
 
         # Right column
-        right_widget = QWidget()
-        right_layout = QGridLayout(right_widget)
-        right_layout.setHorizontalSpacing(12)
-        right_layout.setVerticalSpacing(12)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setColumnStretch(0, 1)
-        right_layout.setColumnStretch(1, 3)
-        right_layout.setColumnMinimumWidth(0, 160)
-        right_layout.setColumnMinimumWidth(1, 320)
+        right_col = QVBoxLayout()
+        right_col.setSpacing(12)
 
-        row_r = 0
-        right_layout.addWidget(QLabel("1st Place Font Size:"), row_r, 0)
-        self.p1_font_size = QLineEdit(str(self.config.get('p1_font_size', 24)))
-        self.p1_font_size.setMaxLength(2)
-        self.p1_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.p1_font_size, row_r, 1)
-
-        row_r += 1
-        right_layout.addWidget(QLabel("2nd Place Font Size:"), row_r, 0)
-        self.p2_font_size = QLineEdit(str(self.config.get('p2_font_size', 22)))
-        self.p2_font_size.setMaxLength(2)
-        self.p2_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.p2_font_size, row_r, 1)
-
-        row_r += 1
-        right_layout.addWidget(QLabel("3rd Place Font Size:"), row_r, 0)
-        self.p3_font_size = QLineEdit(str(self.config.get('p3_font_size', 20)))
-        self.p3_font_size.setMaxLength(2)
-        self.p3_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.p3_font_size, row_r, 1)
-
-        row_r += 1
-        right_layout.addWidget(QLabel("Other Positions Font Size:"), row_r, 0)
-        self.other_font_size = QLineEdit(str(self.config.get('other_font_size', 18)))
+        self.other_font_size = QLineEdit(str(self.config.get('other_font_size', 30)))
         self.other_font_size.setMaxLength(2)
-        self.other_font_size.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.other_font_size, row_r, 1)
+        self.other_font_size.setFixedWidth(60)
+        right_col.addLayout(make_row("Other Font:", self.other_font_size))
 
-        # Separator
-        row_r += 1
-        sep_r1 = QFrame()
-        sep_r1.setFrameShape(QFrame.Shape.HLine)
-        sep_r1.setFrameShadow(QFrame.Shadow.Sunken)
-        sep_r1.setStyleSheet("background-color: #3c3c3c;")
-        sep_r1.setFixedHeight(1)
-        sep_r1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(sep_r1, row_r, 0, 1, 2)
-
-        # Column widths
-        row_r += 1
-        right_layout.addWidget(QLabel("Position Column Width:"), row_r, 0)
         self.position_width = QLineEdit(str(self.config.get('position_width', 80)))
         self.position_width.setMaxLength(3)
-        self.position_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.position_width, row_r, 1)
+        self.position_width.setFixedWidth(60)
+        right_col.addLayout(make_row("Position Width:", self.position_width))
 
-        row_r += 1
-        right_layout.addWidget(QLabel("Driver Column Width:"), row_r, 0)
         self.driver_width = QLineEdit(str(self.config.get('driver_width', 400)))
         self.driver_width.setMaxLength(3)
-        self.driver_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.driver_width, row_r, 1)
+        self.driver_width.setFixedWidth(60)
+        right_col.addLayout(make_row("Driver Width:", self.driver_width))
 
-        row_r += 1
-        right_layout.addWidget(QLabel("Time Column Width:"), row_r, 0)
         self.time_width = QLineEdit(str(self.config.get('time_width', 200)))
         self.time_width.setMaxLength(3)
-        self.time_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.time_width, row_r, 1)
+        self.time_width.setFixedWidth(60)
+        right_col.addLayout(make_row("Time Width:", self.time_width))
 
-        row_r += 1
-        right_layout.addWidget(QLabel("Overall Panel Width:"), row_r, 0)
-        self.panel_width = QLineEdit(str(self.config.get('panel_width', 800)))
+        self.panel_width = QLineEdit(str(self.config.get('panel_width', 1200)))
         self.panel_width.setMaxLength(4)
-        self.panel_width.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.panel_width, row_r, 1)
+        self.panel_width.setFixedWidth(60)
+        right_col.addLayout(make_row("Panel Width:", self.panel_width))
 
-        # Separator
-        row_r += 1
-        sep_r2 = QFrame()
-        sep_r2.setFrameShape(QFrame.Shape.HLine)
-        sep_r2.setFrameShadow(QFrame.Shadow.Sunken)
-        sep_r2.setStyleSheet("background-color: #3c3c3c;")
-        sep_r2.setFixedHeight(1)
-        sep_r2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(sep_r2, row_r, 0, 1, 2)
-
-        # Spacing and padding
-        row_r += 1
-        spacing_label = QLabel("Vertical Spacing:")
-        spacing_label.setToolTip("Controls the gap between each position row")
-        right_layout.addWidget(spacing_label, row_r, 0)
         self.vertical_spacing = QLineEdit(str(self.config.get('vertical_spacing', 4)))
         self.vertical_spacing.setMaxLength(2)
-        self.vertical_spacing.setToolTip("Controls the gap between each position row")
-        self.vertical_spacing.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.vertical_spacing, row_r, 1)
+        self.vertical_spacing.setFixedWidth(60)
+        right_col.addLayout(make_row("Vert. Spacing:", self.vertical_spacing))
 
-        row_r += 1
-        padding_label = QLabel("Row Height Padding:")
-        padding_label.setToolTip("Controls the internal height of each position row")
-        right_layout.addWidget(padding_label, row_r, 0)
         self.row_height_padding = QLineEdit(str(self.config.get('row_height_padding', 16)))
         self.row_height_padding.setMaxLength(2)
-        self.row_height_padding.setToolTip("Controls the internal height of each position row")
-        self.row_height_padding.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        right_layout.addWidget(self.row_height_padding, row_r, 1)
+        self.row_height_padding.setFixedWidth(60)
+        right_col.addLayout(make_row("Row Padding:", self.row_height_padding))
 
-        # Assemble columns and add to tab
-        columns_layout.addWidget(left_widget)
-        columns_layout.addWidget(right_widget)
-        appearance_vlayout.addLayout(columns_layout)
-        appearance_vlayout.addStretch(1)
+        right_col.addStretch()
+        columns.addLayout(right_col)
 
-        save_btn_appearance = QPushButton("Save Settings")
-        save_btn_appearance.setStyleSheet("""
+        appearance_main.addLayout(columns)
+        appearance_main.addStretch()
+
+        tabs.addTab(appearance_tab, "Appearance")
+
+        # Save Settings button - outside tabs
+        save_btn = QPushButton("Save Settings")
+        save_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2196F3;
+                background-color: #007acc;
                 font-size: 14px;
                 padding: 10px;
-                margin-top: 10px;
             }
             QPushButton:hover {
-                background-color: #1976D2;
+                background-color: #005a9e;
             }
         """)
-        save_btn_appearance.clicked.connect(self.save_settings)
-        appearance_vlayout.addWidget(save_btn_appearance)
-        tabs.addTab(appearance_tab, "Appearance")
+        save_btn.clicked.connect(self.save_settings)
+        layout.addWidget(save_btn)
     
     def create_leaderboard_window(self):
         if self.leaderboard_window is None:
@@ -2462,7 +2395,7 @@ class ControlWindow(QMainWindow):
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
-                self.leaderboard_window.update_leaderboard([])
+                self.leaderboard_window.update_entries([])
 
             QMessageBox.information(
                 self,
@@ -2499,7 +2432,7 @@ class ControlWindow(QMainWindow):
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
-                self.leaderboard_window.update_leaderboard([])
+                self.leaderboard_window.update_entries([])
 
             QMessageBox.information(self, "Cleared", "Leaderboard has been cleared.")
             self.statusBar().showMessage("Leaderboard cleared")
@@ -2533,9 +2466,11 @@ class ControlWindow(QMainWindow):
         if self.config.get('orientation', 'horizontal') == 'horizontal':
             self.config['orientation'] = 'vertical'
             self.orientation_toggle.setText("Vertical")
+            self.resolution_label.setText("1080x1920")
         else:
             self.config['orientation'] = 'horizontal'
             self.orientation_toggle.setText("Horizontal")
+            self.resolution_label.setText("1920x1080")
 
         # Remove old aspect ratio settings
         self.config['use_tall_aspect'] = False
@@ -2556,11 +2491,9 @@ class ControlWindow(QMainWindow):
                 # 11 rows x 123px = 1353px
                 self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
             else:
-                # Horizontal mode - set width and allow height to be dynamic
-                panel_width = self.config.get('panel_width', 800)
-                self.leaderboard_window.leaderboard_panel.setMinimumHeight(0)
-                self.leaderboard_window.leaderboard_panel.setMaximumHeight(16777215)
-                self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
+                # Horizontal mode: wider panel for 1920x1080 landscape screens
+                panel_width = self.config.get('panel_width', 1200)
+                self.leaderboard_window.leaderboard_panel.setFixedSize(panel_width, 660)
 
             # Update column widths to reflect new panel size
             self.leaderboard_window.update_column_widths()
@@ -2636,7 +2569,7 @@ class ControlWindow(QMainWindow):
                 # 11 rows x 123px = 1353px
                 self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
             else:
-                panel_width = self.config.get('panel_width', 800)
+                panel_width = self.config.get('panel_width', 1200)
                 self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
             
             # Update visual elements in order
@@ -2670,24 +2603,30 @@ class ControlWindow(QMainWindow):
 
     def update_simulators_display(self):
         """Update the connected simulators display"""
+        # Remove offline simulators (not seen for more than 5 minutes)
+        now = datetime.now()
+        offline_sims = [sim_id for sim_id, info in connected_simulators.items()
+                       if (now - info['last_seen']).total_seconds() > 300]
+        for sim_id in offline_sims:
+            del connected_simulators[sim_id]
+
         if not connected_simulators:
-            self.simulators_display.setText("No simulators connected")
+            self.simulators_display.setText("No devices connected\n\nDevices will appear here when they connect to the server.")
             self.simulators_display.setStyleSheet("""
                 QLabel {
-                    background-color: #2d2d2d;
+                    background-color: #252526;
                     color: #888888;
                     font-family: Consolas, monospace;
                     font-size: 12px;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #444444;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #3c3c3c;
                 }
             """)
             return
 
         # Build display text
         lines = []
-        now = datetime.now()
         active_count = 0
 
         for sim_id, info in connected_simulators.items():
@@ -2695,26 +2634,21 @@ class ControlWindow(QMainWindow):
 
             # Consider simulator "active" if seen in last 60 seconds
             if time_diff < 60:
-                status = "ACTIVE"
-                color = "#00ff00"
+                status = "\u25CF ACTIVE"  # Green dot
                 active_count += 1
             elif time_diff < 300:
-                status = "IDLE"
-                color = "#ffaa00"
-            else:
-                status = "OFFLINE"
-                color = "#ff4444"
+                status = "\u25CB IDLE"    # White circle
 
             # Format last lap time (handle None for ping-only connections)
             lap_time = info.get('last_lap')
             if lap_time is not None:
                 lap_str = f"{int(lap_time // 60):02d}:{lap_time % 60:06.3f}"
             else:
-                lap_str = "None"
+                lap_str = "--:--"
 
-            lines.append(f"Sim {sim_id} ({info['ip']}) - {status}")
-            lines.append(f"  Driver: {info['driver']}")
-            lines.append(f"  Last Lap: {lap_str}")
+            driver = info.get('driver', 'Unknown')
+            lines.append(f"{status}  {driver}")
+            lines.append(f"      Sim {sim_id} ({info['ip']})  |  Last: {lap_str}")
 
         display_text = "\n".join(lines)
         self.simulators_display.setText(display_text)
@@ -2724,24 +2658,24 @@ class ControlWindow(QMainWindow):
             self.simulators_display.setStyleSheet("""
                 QLabel {
                     background-color: #1a2d1a;
-                    color: #00ff00;
+                    color: #4ec9b0;
                     font-family: Consolas, monospace;
                     font-size: 12px;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #00aa00;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #2d5a2d;
                 }
             """)
         else:
             self.simulators_display.setStyleSheet("""
                 QLabel {
                     background-color: #2d2d2d;
-                    color: #ffaa00;
+                    color: #d4a54a;
                     font-family: Consolas, monospace;
                     font-size: 12px;
-                    padding: 10px;
-                    border-radius: 5px;
-                    border: 1px solid #444444;
+                    padding: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #3c3c3c;
                 }
             """)
 
@@ -2781,9 +2715,23 @@ class ControlWindow(QMainWindow):
                 self.discovery_responder.stop()
                 delattr(self, 'discovery_responder')
 
-            self.server_status_label.setText("Server Status: Stopped")
+            self.server_status_label.setText("Stopped")
+            self.server_status_label.setStyleSheet("color: #888888; font-size: 12px; background: transparent; border: none;")
+            self.server_status_dot.setStyleSheet("color: #888888; font-size: 10px; background: transparent; border: none;")
             self.discovery_status_label.setText("Discovery: Inactive")
             self.server_toggle_btn.setText("Start Server")
+            self.server_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #4ec9b0;
+                    color: #1e1e1e;
+                    font-size: 12px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #3cb99f;
+                }
+            """)
             self.statusBar().showMessage("Lap time server stopped")
         else:
             # Start the server
@@ -2804,17 +2752,34 @@ class ControlWindow(QMainWindow):
                 self.config['server_url'] = f'http://{local_ip}:{port}'
                 self.config['server_port'] = port  # Save port to config
                 self.server_url_entry.setText(self.config['server_url'])
+                self.server_port_display.setText(str(port))
 
                 # Save config to persist port change
                 with open('config.json', 'w') as f:
                     json.dump(self.config, f)
 
-                self.server_status_label.setText(f"Server Status: Running on port {port}")
+                self.server_status_label.setText("Running")
+                self.server_status_label.setStyleSheet("color: #4ec9b0; font-size: 12px; background: transparent; border: none;")
+                self.server_status_dot.setStyleSheet("color: #4ec9b0; font-size: 10px; background: transparent; border: none;")
                 self.discovery_status_label.setText(f"Discovery: Active (UDP {DISCOVERY_PORT})")
                 self.server_toggle_btn.setText("Stop Server")
+                self.server_toggle_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #f48771;
+                        color: #1e1e1e;
+                        font-size: 12px;
+                        padding: 6px 12px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #d96a56;
+                    }
+                """)
                 self.statusBar().showMessage(f"Lap time server started on port {port}")
             except Exception as e:
-                self.server_status_label.setText(f"Server Status: Error - {str(e)}")
+                self.server_status_label.setText(f"Error: {str(e)[:20]}")
+                self.server_status_label.setStyleSheet("color: #f48771; font-size: 12px; background: transparent; border: none;")
+                self.server_status_dot.setStyleSheet("color: #f48771; font-size: 10px; background: transparent; border: none;")
                 self.statusBar().showMessage(f"Error starting lap time server: {str(e)}")
 
     def start_lap_time_server(self):
@@ -2845,12 +2810,29 @@ class ControlWindow(QMainWindow):
             self.config['server_url'] = f'http://{local_ip}:{port}'
             self.server_url_entry.setText(self.config['server_url'])
 
-            self.server_status_label.setText(f"Server Status: Running on port {port}")
+            self.server_status_label.setText("Running")
+            self.server_status_label.setStyleSheet("color: #4ec9b0; font-size: 12px; background: transparent; border: none;")
+            self.server_status_dot.setStyleSheet("color: #4ec9b0; font-size: 10px; background: transparent; border: none;")
+            self.server_port_display.setText(str(port))
             self.discovery_status_label.setText(f"Discovery: Active (UDP {DISCOVERY_PORT})")
             self.server_toggle_btn.setText("Stop Server")
+            self.server_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #f48771;
+                    color: #1e1e1e;
+                    font-size: 12px;
+                    padding: 6px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #d96a56;
+                }
+            """)
             self.statusBar().showMessage(f"Lap time server started on port {port}")
         except Exception as e:
-            self.server_status_label.setText(f"Server Status: Error - {str(e)}")
+            self.server_status_label.setText(f"Error: {str(e)[:20]}")
+            self.server_status_label.setStyleSheet("color: #f48771; font-size: 12px; background: transparent; border: none;")
+            self.server_status_dot.setStyleSheet("color: #f48771; font-size: 10px; background: transparent; border: none;")
             self.statusBar().showMessage(f"Error starting lap time server: {str(e)}")
     
     def closeEvent(self, event):
