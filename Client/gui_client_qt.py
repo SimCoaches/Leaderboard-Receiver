@@ -1587,21 +1587,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         entry['assigned_to'] = simulator_ip
         save_queue_data()
 
-        # Send SMS notification if phone number is available
-        sms_sent = False
-        phone = entry.get('phone', '')
-        if phone:
-            sms_sent = send_sms_notification(
-                phone_number=phone,
-                driver_name=entry.get('name', 'Guest'),
-                simulator_name=simulator_name
-            )
-
+        # Return phone number so Sender can handle SMS
         self.send_json_response({
             'success': True,
             'name': entry.get('name'),
-            'simulator_ip': simulator_ip,
-            'sms_sent': sms_sent
+            'phone': entry.get('phone', ''),
+            'simulator_ip': simulator_ip
         })
 
     def handle_session_started(self, data):
@@ -2772,11 +2763,16 @@ class ControlWindow(QMainWindow):
             if self.leaderboard_window.isVisible():
                 self.leaderboard_window.hide()
                 self.show_leaderboard_btn.setText("Show Leaderboard")
+                # Restore control window when hiding leaderboard
+                self.showNormal()
+                self.activateWindow()
             else:
                 self.leaderboard_window.show()
                 self.leaderboard_window.activateWindow()
                 self.leaderboard_window.raise_()
                 self.show_leaderboard_btn.setText("Hide Leaderboard")
+                # Minimize control window so it doesn't show on the display
+                QTimer.singleShot(100, self.showMinimized)
                 # Re-apply background image when showing (ensures it persists after restart)
                 # Use multiple attempts to ensure it loads reliably
                 if self.config.get('background_image'):
@@ -2914,8 +2910,7 @@ class ControlWindow(QMainWindow):
             # Load queue data from file
             load_queue_data()
 
-            # Load SMS configuration (Textbelt or Twilio)
-            load_sms_config()
+            # SMS is now handled by Sender - no need to load SMS config here
 
             port = int(self.config.get('server_port', 5000))
             # Update port input field
