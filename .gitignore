@@ -26,6 +26,8 @@ Client/dist/
 
 # PyInstaller spec (auto-generated)
 Client/SimRacingClient.spec
+Client/LapTimeReceiver.spec
+*.spec
 
 # Installer output
 Output/
@@ -43,6 +45,10 @@ Client/queue.json
 # OS files
 .DS_Store
 Thumbs.db
+nul
+
+# Claude Code local settings
+.claude/
 
 # Logs
 *.log
