@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+build/
+dist/
+Client/build/
+Client/dist/
+*.egg-info/
+
+# PyInstaller spec (auto-generated)
+Client/SimRacingClient.spec
+
+# Installer output
+Output/
+
+# Data files
+*.csv
+lap_times.csv
+Client/lap_times.csv
+
+# Config files with sensitive data
+Client/twilio_config.json
+Client/sms_config.json
+Client/queue.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+*.bak

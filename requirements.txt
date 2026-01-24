@@ -1,0 +1,4 @@
+PyQt6>=6.10.0
+PyQt6-sip>=6.10.0
+requests>=2.32.0
+pyinstaller>=6.16.0
