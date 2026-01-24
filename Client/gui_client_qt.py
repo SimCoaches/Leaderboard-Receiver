@@ -978,7 +978,7 @@ class LeaderboardWindow(QWidget):
         # Efficiently handle widget recycling
         if data:
             widths = [
-                self.config.get('position_width', 80),
+                self.config.get('position_width', 120),
                 self.config.get('driver_width', 400),
                 self.config.get('time_width', 200)
             ]
@@ -1157,7 +1157,7 @@ class LeaderboardWindow(QWidget):
         fixed_header_padding = 8
         fixed_entry_padding = 5
         
-        header_font_size = self.config.get('header_font_size', 24)
+        header_font_size = self.config.get('header_font_size', 30)
         entry_font_size = self.config.get('entry_font_size', 20)
             
         header_style = f"""
@@ -1317,7 +1317,7 @@ class LeaderboardWindow(QWidget):
     def update_font_sizes(self, data=None):
         """Update all font sizes based on current config"""
         # Update header font sizes
-        header_font_size = self.config.get('header_font_size', 24)
+        header_font_size = self.config.get('header_font_size', 30)
         opacity = self.config.get('opacity', 220)
         self.header_widget.setStyleSheet(f"""
             QWidget {{
@@ -1746,7 +1746,7 @@ class ControlWindow(QMainWindow):
             'server_port': 5000,
             'refresh_interval': 5,
             'opacity': 220,
-            'header_font_size': 24,
+            'header_font_size': 30,
             'entry_font_size': 30,
             'p1_font_size': 30,    # First place font size
             'p2_font_size': 30,    # Second place font size
@@ -1754,7 +1754,7 @@ class ControlWindow(QMainWindow):
             'other_font_size': 30, # Other positions font size
             'background_image': '',
             'fill_screen': False,   # Whether to fill the entire screen with background
-            'position_width': 80,    # Default width for position column
+            'position_width': 120,    # Default width for position column
             'driver_width': 400,     # Default width for driver name column
             'time_width': 200,       # Default width for time column
             'panel_width': 1200,     # Default width for horizontal mode panel
@@ -2341,7 +2341,7 @@ class ControlWindow(QMainWindow):
         self.other_font_size.setFixedWidth(60)
         right_col.addLayout(make_row("Other Font:", self.other_font_size))
 
-        self.position_width = QLineEdit(str(self.config.get('position_width', 80)))
+        self.position_width = QLineEdit(str(self.config.get('position_width', 120)))
         self.position_width.setMaxLength(3)
         self.position_width.setFixedWidth(60)
         right_col.addLayout(make_row("Position Width:", self.position_width))
@@ -2398,8 +2398,9 @@ class ControlWindow(QMainWindow):
         if self.leaderboard_window is None:
             # Create as a separate window without parent
             self.leaderboard_window = LeaderboardWindow(self.config, parent=None)
+            # Apply background image with delay to ensure window is fully initialized
             if self.config.get('background_image'):
-                self.leaderboard_window.set_background(self.config['background_image'])
+                QTimer.singleShot(200, lambda: self._apply_background_image())
 
     def export_and_end_event(self):
         """Export lap times to a named file and clear the leaderboard"""
@@ -2777,10 +2778,12 @@ class ControlWindow(QMainWindow):
                 self.leaderboard_window.raise_()
                 self.show_leaderboard_btn.setText("Hide Leaderboard")
                 # Re-apply background image when showing (ensures it persists after restart)
+                # Use multiple attempts to ensure it loads reliably
                 if self.config.get('background_image'):
-                    QTimer.singleShot(100, lambda: self.leaderboard_window.set_background(self.config['background_image']))
+                    QTimer.singleShot(100, self._apply_background_image)
+                    QTimer.singleShot(500, self._apply_background_image)
                 # Load test data if no real data exists
-                QTimer.singleShot(200, self._load_test_data_if_empty)
+                QTimer.singleShot(300, self._load_test_data_if_empty)
             
     def update_leaderboard(self, data):
         if self.leaderboard_window:
@@ -2817,7 +2820,15 @@ class ControlWindow(QMainWindow):
                 {'driver_name': 'Sergio Perez Rodriguez', 'lap_time': 68.345},
             ]
             self.leaderboard_window.update_entries(test_data)
-    
+
+    def _apply_background_image(self):
+        """Apply background image to leaderboard window - helper for reliable loading"""
+        if self.leaderboard_window and self.config.get('background_image'):
+            bg_path = self.config['background_image']
+            if os.path.exists(bg_path):
+                self.leaderboard_window.set_background(bg_path)
+                print(f"[BACKGROUND] Applied: {bg_path}")
+
     def toggle_server(self):
         if hasattr(self, 'http_server'):
             # Stop the server
