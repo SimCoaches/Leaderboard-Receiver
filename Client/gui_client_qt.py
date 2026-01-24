@@ -347,6 +347,17 @@ class DiscoveryResponder(threading.Thread):
                         self.socket.sendto(response.encode(), addr)
                         logger.warning(f"Discovery: Responded to {addr[0]} with {response}")
 
+                        # Track as discovered simulator
+                        sim_ip = addr[0]
+                        sim_id = f"discovered_{sim_ip.replace('.', '_')}"
+                        connected_simulators[sim_id] = {
+                            'ip': sim_ip,
+                            'last_seen': datetime.now(),
+                            'driver': '(Discovered - awaiting data)',
+                            'last_lap': None
+                        }
+                        print(f"[DISCOVERY] Simulator at {sim_ip} discovered and tracked")
+
                 except socket.timeout:
                     continue  # Normal timeout, just loop again
                 except Exception as e:
@@ -637,22 +648,25 @@ class LeaderboardWindow(QWidget):
             }
         """)
 
-        # Set fixed header height for vertical mode
+        # Set fixed header height based on orientation
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
         if is_vertical:
             self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
+        else:
+            # Horizontal mode: 660px total / 11 rows = 60px per row
+            self.header_widget.setFixedHeight(60)
 
         header_layout = QHBoxLayout(self.header_widget)
-        header_layout.setContentsMargins(30, 10, 30, 4)  # Equal margins left and right
-        header_layout.setSpacing(20)  # Reduced spacing between columns
-        header_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        header_layout.setContentsMargins(30, 0, 30, 0)  # No vertical margins
+        header_layout.setSpacing(20)
+        header_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # Balanced widths: Position and Time equal, Driver gets the rest
         widths = [100, 484, 180]  # Position, Driver, Time
         for header, width in zip(headers, widths):
             label = QLabel(header)
             label.setFixedWidth(width)
-            label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
             header_layout.addWidget(label)
         
         panel_layout.addWidget(self.header_widget)
@@ -671,8 +685,8 @@ class LeaderboardWindow(QWidget):
             }
         """)
         self.entries_layout = QVBoxLayout(self.entries_widget)
-        self.entries_layout.setContentsMargins(20, 6, 20, 6)  # Match header outer margins
-        self.entries_layout.setSpacing(self.vertical_spacing)  # Use configured vertical spacing
+        self.entries_layout.setContentsMargins(20, 0, 20, 0)  # No vertical margins for tight fit
+        self.entries_layout.setSpacing(0)  # No spacing - heights are exact
         panel_layout.addWidget(self.entries_widget)
         
         layout.addWidget(self.leaderboard_panel)
@@ -955,11 +969,11 @@ class LeaderboardWindow(QWidget):
             # Panel size: 864 width, 11 rows x 123px = 1353px
             self.leaderboard_panel.setFixedSize(864, 1353)
         else:
-            self.entries_layout.setSpacing(self.vertical_spacing)
-            # Remove fixed height constraint on header for horizontal mode
-            self.header_widget.setMinimumHeight(0)
-            self.header_widget.setMaximumHeight(16777215)  # Qt's QWIDGETSIZE_MAX
-            self.leaderboard_panel.setFixedWidth(self.config.get('panel_width', 1200))
+            # Horizontal mode: 660px / 11 rows = 60px per row, no spacing
+            self.entries_layout.setSpacing(0)
+            self.header_widget.setFixedHeight(60)
+            panel_width = self.config.get('panel_width', 1200)
+            self.leaderboard_panel.setFixedSize(panel_width, 660)
         
         # Efficiently handle widget recycling
         if data:
@@ -983,15 +997,8 @@ class LeaderboardWindow(QWidget):
             if is_vertical:
                 row_height = self.config.get('vertical_row_height', 123)
             else:
-                row_padding = self.config.get('row_height_padding', 16)
-                max_font_size = max(
-                    self.config.get('p1_font_size', 24),
-                    self.config.get('p2_font_size', 22),
-                    self.config.get('p3_font_size', 20),
-                    self.config.get('other_font_size', 18)
-                )
-                vertical_padding = self.config.get('vertical_spacing', 4)
-                row_height = max_font_size + row_padding + vertical_padding
+                # Horizontal mode: 660px / 11 rows = 60px per row
+                row_height = 60
             
             # Update the widgets we're using
             for i, entry in enumerate(data):
@@ -1039,17 +1046,9 @@ class LeaderboardWindow(QWidget):
             # Use fixed row height for vertical mode (123px by default)
             row_height = self.config.get('vertical_row_height', 123)
         else:
-            # Use dynamic row height based on font size for horizontal mode
-            row_padding = self.config.get('row_height_padding', 16)
-            max_font_size = max(
-                self.config.get('p1_font_size', 24),
-                self.config.get('p2_font_size', 22),
-                self.config.get('p3_font_size', 20),
-                self.config.get('other_font_size', 18)
-            )
-            vertical_padding = self.config.get('vertical_spacing', 4)
-            row_height = max_font_size + row_padding + vertical_padding
-        
+            # Horizontal mode: 660px / 11 rows = 60px per row
+            row_height = 60
+
         widget.setFixedHeight(row_height)
         
         return widget
@@ -1425,6 +1424,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         global queue_data
         path = self.path.split('?')[0]  # Remove query string
+        print(f"[HTTP POST] Request from {self.client_address[0]} to {path}")
 
         try:
             content_length = int(self.headers.get('Content-Length', 0))
@@ -1662,6 +1662,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         global queue_data
         path = self.path.split('?')[0]  # Remove query string
         client_ip = self.client_address[0]
+        print(f"[HTTP GET] Request from {client_ip} to {path}")
 
         # Route to appropriate handler
         if path == '/api/queue':
@@ -2064,6 +2065,66 @@ class ControlWindow(QMainWindow):
         self.resolution_label = QLabel(res_text)
         self.resolution_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
         display_card_layout.addWidget(self.resolution_label)
+
+        # Position controls - arrow buttons
+        position_label = QLabel("Position:")
+        position_label.setStyleSheet("color: #888888; font-size: 10px; margin-top: 4px; background: transparent; border: none;")
+        display_card_layout.addWidget(position_label)
+
+        # Arrow button style
+        arrow_btn_style = """
+            QPushButton {
+                background-color: #3c3c3c;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 2px;
+                min-width: 28px;
+                max-width: 28px;
+                min-height: 22px;
+                max-height: 22px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """
+
+        # Top row: Up button centered
+        top_arrow_row = QHBoxLayout()
+        top_arrow_row.setSpacing(2)
+        top_arrow_row.addStretch()
+        self.move_up_btn = QPushButton("▲")
+        self.move_up_btn.setStyleSheet(arrow_btn_style)
+        self.move_up_btn.clicked.connect(self.move_leaderboard_up)
+        top_arrow_row.addWidget(self.move_up_btn)
+        top_arrow_row.addStretch()
+        display_card_layout.addLayout(top_arrow_row)
+
+        # Middle row: Left and Right buttons
+        mid_arrow_row = QHBoxLayout()
+        mid_arrow_row.setSpacing(2)
+        mid_arrow_row.addStretch()
+        self.move_left_btn = QPushButton("◀")
+        self.move_left_btn.setStyleSheet(arrow_btn_style)
+        self.move_left_btn.clicked.connect(self.move_leaderboard_left)
+        mid_arrow_row.addWidget(self.move_left_btn)
+        self.move_right_btn = QPushButton("▶")
+        self.move_right_btn.setStyleSheet(arrow_btn_style)
+        self.move_right_btn.clicked.connect(self.move_leaderboard_right)
+        mid_arrow_row.addWidget(self.move_right_btn)
+        mid_arrow_row.addStretch()
+        display_card_layout.addLayout(mid_arrow_row)
+
+        # Bottom row: Down button centered
+        bottom_arrow_row = QHBoxLayout()
+        bottom_arrow_row.setSpacing(2)
+        bottom_arrow_row.addStretch()
+        self.move_down_btn = QPushButton("▼")
+        self.move_down_btn.setStyleSheet(arrow_btn_style)
+        self.move_down_btn.clicked.connect(self.move_leaderboard_down)
+        bottom_arrow_row.addWidget(self.move_down_btn)
+        bottom_arrow_row.addStretch()
+        display_card_layout.addLayout(bottom_arrow_row)
 
         display_card_layout.addStretch()
 
@@ -2512,7 +2573,27 @@ class ControlWindow(QMainWindow):
         # Save config to persist orientation change
         with open('config.json', 'w') as f:
             json.dump(self.config, f)
-    
+
+    def move_leaderboard_up(self):
+        """Move the leaderboard panel up"""
+        if self.leaderboard_window:
+            self.leaderboard_window.move_up()
+
+    def move_leaderboard_down(self):
+        """Move the leaderboard panel down"""
+        if self.leaderboard_window:
+            self.leaderboard_window.move_down()
+
+    def move_leaderboard_left(self):
+        """Move the leaderboard panel left"""
+        if self.leaderboard_window:
+            self.leaderboard_window.move_left()
+
+    def move_leaderboard_right(self):
+        """Move the leaderboard panel right"""
+        if self.leaderboard_window:
+            self.leaderboard_window.move_right()
+
     def save_settings(self):
         """Save settings to config file"""
         # Always get current IP address
@@ -2698,10 +2779,44 @@ class ControlWindow(QMainWindow):
                 # Re-apply background image when showing (ensures it persists after restart)
                 if self.config.get('background_image'):
                     QTimer.singleShot(100, lambda: self.leaderboard_window.set_background(self.config['background_image']))
+                # Load test data if no real data exists
+                QTimer.singleShot(200, self._load_test_data_if_empty)
             
     def update_leaderboard(self, data):
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
+
+    def _load_test_data_if_empty(self):
+        """Load test data to preview leaderboard layout"""
+        if not self.leaderboard_window:
+            return
+        # Check if leaderboard already has data
+        csv_file = 'lap_times.csv'
+        has_data = False
+        if os.path.exists(csv_file):
+            try:
+                with open(csv_file, 'r') as f:
+                    reader = csv.reader(f)
+                    next(reader, None)  # Skip header
+                    has_data = any(reader)
+            except:
+                pass
+
+        if not has_data:
+            # Generate test data
+            test_data = [
+                {'driver_name': 'Max Verstappen', 'lap_time': 65.432},
+                {'driver_name': 'Lewis Hamilton', 'lap_time': 65.891},
+                {'driver_name': 'Charles Leclerc', 'lap_time': 66.234},
+                {'driver_name': 'Lando Norris', 'lap_time': 66.567},
+                {'driver_name': 'Carlos Sainz Jr', 'lap_time': 66.789},
+                {'driver_name': 'George Russell', 'lap_time': 67.012},
+                {'driver_name': 'Oscar Piastri', 'lap_time': 67.345},
+                {'driver_name': 'Fernando Alonso', 'lap_time': 67.678},
+                {'driver_name': 'Alexander Albon-Ansusinha', 'lap_time': 68.012},
+                {'driver_name': 'Sergio Perez Rodriguez', 'lap_time': 68.345},
+            ]
+            self.leaderboard_window.update_entries(test_data)
     
     def toggle_server(self):
         if hasattr(self, 'http_server'):
