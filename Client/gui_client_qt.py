@@ -721,11 +721,15 @@ class LeaderboardWindow(QWidget):
                 }
             """)
 
-            # Show fullscreen
-            self.showFullScreen()
-
             # Get actual screen dimensions
             screen = QApplication.primaryScreen().geometry()
+
+            # Show fullscreen - set geometry explicitly to cover taskbar on Windows
+            self.setWindowState(Qt.WindowState.WindowFullScreen)
+            self.setGeometry(screen)
+            self.showFullScreen()
+            self.raise_()
+            self.activateWindow()
 
             # Remove widgets from layout for absolute positioning
             self.layout().removeWidget(self.title_bar)
@@ -2771,51 +2775,15 @@ class ControlWindow(QMainWindow):
                 self.leaderboard_window.activateWindow()
                 self.leaderboard_window.raise_()
                 self.show_leaderboard_btn.setText("Hide Leaderboard")
-                # Minimize control window so it doesn't show on the display
-                QTimer.singleShot(100, self.showMinimized)
                 # Re-apply background image when showing (ensures it persists after restart)
                 # Use multiple attempts to ensure it loads reliably
                 if self.config.get('background_image'):
                     QTimer.singleShot(100, self._apply_background_image)
                     QTimer.singleShot(500, self._apply_background_image)
-                # Load test data if no real data exists
-                QTimer.singleShot(300, self._load_test_data_if_empty)
             
     def update_leaderboard(self, data):
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
-
-    def _load_test_data_if_empty(self):
-        """Load test data to preview leaderboard layout"""
-        if not self.leaderboard_window:
-            return
-        # Check if leaderboard already has data
-        csv_file = 'lap_times.csv'
-        has_data = False
-        if os.path.exists(csv_file):
-            try:
-                with open(csv_file, 'r') as f:
-                    reader = csv.reader(f)
-                    next(reader, None)  # Skip header
-                    has_data = any(reader)
-            except:
-                pass
-
-        if not has_data:
-            # Generate test data
-            test_data = [
-                {'driver_name': 'Max Verstappen', 'lap_time': 65.432},
-                {'driver_name': 'Lewis Hamilton', 'lap_time': 65.891},
-                {'driver_name': 'Charles Leclerc', 'lap_time': 66.234},
-                {'driver_name': 'Lando Norris', 'lap_time': 66.567},
-                {'driver_name': 'Carlos Sainz Jr', 'lap_time': 66.789},
-                {'driver_name': 'George Russell', 'lap_time': 67.012},
-                {'driver_name': 'Oscar Piastri', 'lap_time': 67.345},
-                {'driver_name': 'Fernando Alonso', 'lap_time': 67.678},
-                {'driver_name': 'Alexander Albon-Ansusinha', 'lap_time': 68.012},
-                {'driver_name': 'Sergio Perez Rodriguez', 'lap_time': 68.345},
-            ]
-            self.leaderboard_window.update_entries(test_data)
 
     def _apply_background_image(self):
         """Apply background image to leaderboard window - helper for reliable loading"""
