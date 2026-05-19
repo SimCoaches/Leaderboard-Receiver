@@ -3,6 +3,9 @@ import json
 import os
 import csv
 import shutil
+import hashlib
+import hmac
+import uuid
 from datetime import datetime
 import requests
 import logging
@@ -32,6 +35,376 @@ queue_data = {
 }
 QUEUE_FILE = "queue.json"
 MAX_SESSION_HISTORY = 50
+
+# Partner integration storage. Disabled by default so the existing leaderboard
+# path continues to work even if partner config is missing or broken.
+INTEGRATION_CONFIG_FILE = "integration_config.json"
+INTEGRATION_LOG_FILE = "integration_events.jsonl"
+INTEGRATION_PENDING_FILE = "integration_pending.jsonl"
+integration_config = {
+    "enabled": False,
+    "dry_run": True,
+    "webhook_url": "",
+    "api_key": "",
+    "signing_secret": "",
+    "timeout_seconds": 5,
+    "demo_url": ""
+}
+
+def load_integration_config():
+    """Load partner integration settings from disk."""
+    global integration_config
+    if os.path.exists(INTEGRATION_CONFIG_FILE):
+        try:
+            with open(INTEGRATION_CONFIG_FILE, 'r') as f:
+                loaded = json.load(f)
+                integration_config.update(loaded)
+        except Exception as e:
+            logger.warning(f"Error loading integration config: {e}")
+    else:
+        save_integration_config()
+        print(f"[Integration] Created disabled config file: {INTEGRATION_CONFIG_FILE}")
+    return integration_config
+
+def save_integration_config():
+    """Save partner integration settings to disk."""
+    try:
+        safe_config = integration_config.copy()
+        with open(INTEGRATION_CONFIG_FILE, 'w') as f:
+            json.dump(safe_config, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Error saving integration config: {e}")
+
+def append_integration_log(record):
+    """Append integration delivery records without affecting race flow."""
+    try:
+        with open(INTEGRATION_LOG_FILE, 'a') as f:
+            f.write(json.dumps(record, separators=(',', ':')) + "\n")
+    except Exception as e:
+        logger.warning(f"Error writing integration log: {e}")
+
+def append_pending_integration_event(event, reason):
+    """Persist an event for later retry without blocking the race flow."""
+    try:
+        record = {
+            "queued_at": datetime.now().isoformat(),
+            "reason": reason,
+            "event": event
+        }
+        with open(INTEGRATION_PENDING_FILE, 'a') as f:
+            f.write(json.dumps(record, separators=(',', ':')) + "\n")
+    except Exception as e:
+        logger.warning(f"Error writing pending integration event: {e}")
+
+def load_pending_integration_events():
+    """Load pending partner events from disk."""
+    if not os.path.exists(INTEGRATION_PENDING_FILE):
+        return []
+
+    pending = []
+    try:
+        with open(INTEGRATION_PENDING_FILE, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                    event = record.get("event")
+                    if event:
+                        pending.append(record)
+                except json.JSONDecodeError:
+                    continue
+    except Exception as e:
+        logger.warning(f"Error loading pending integration events: {e}")
+    return pending
+
+def rewrite_pending_integration_events(records):
+    """Replace pending event queue with remaining undelivered records."""
+    try:
+        if not records:
+            if os.path.exists(INTEGRATION_PENDING_FILE):
+                os.remove(INTEGRATION_PENDING_FILE)
+            return
+        with open(INTEGRATION_PENDING_FILE, 'w') as f:
+            for record in records:
+                f.write(json.dumps(record, separators=(',', ':')) + "\n")
+    except Exception as e:
+        logger.warning(f"Error rewriting pending integration events: {e}")
+
+def split_driver_name(driver_name):
+    """Best-effort split for partner payloads while preserving full name."""
+    parts = str(driver_name or '').strip().split()
+    if not parts:
+        return "", "", ""
+    if len(parts) == 1:
+        return parts[0], "", parts[0]
+    return parts[0], " ".join(parts[1:]), " ".join(parts)
+
+def format_lap_time(seconds):
+    """Format seconds as mm:ss.xxx for partner payloads."""
+    try:
+        seconds = float(seconds)
+    except (TypeError, ValueError):
+        seconds = 0
+    minutes = int(seconds // 60)
+    remaining = seconds % 60
+    return f"{minutes:02d}:{remaining:06.3f}"
+
+def build_race_completed_event(lap_data):
+    """Create the stable partner event payload from a saved lap row."""
+    first_name, last_name, full_name = split_driver_name(lap_data.get('driver_name', ''))
+    race_time = float(lap_data.get('lap_time', 0))
+    session_id = str(lap_data.get('session_id') or f"legacy-{uuid.uuid4()}")
+    completed_at = lap_data.get('timestamp') or datetime.now().isoformat()
+
+    return {
+        "event_type": "race.completed",
+        "event_id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "racer": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+            "email": str(lap_data.get('email', '')),
+            "phone": str(lap_data.get('phone', ''))
+        },
+        "race_time_seconds": race_time,
+        "formatted_race_time": format_lap_time(race_time),
+        "simulator_id": str(lap_data.get('simulator_id', '')),
+        "completed_at": completed_at,
+        "demo_url": integration_config.get("demo_url", "")
+    }
+
+def sign_integration_payload(payload_body, secret):
+    """Return an HMAC signature for partner webhook verification."""
+    return hmac.new(
+        secret.encode('utf-8'),
+        payload_body.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+def attempt_integration_delivery(event):
+    """Attempt partner delivery once and return a delivery record."""
+    config = load_integration_config()
+    record = {
+        "event_id": event.get("event_id"),
+        "event_type": event.get("event_type"),
+        "created_at": datetime.now().isoformat(),
+        "enabled": bool(config.get("enabled")),
+        "dry_run": bool(config.get("dry_run")),
+        "delivered": False,
+        "status_code": None,
+        "error": None
+    }
+
+    if not config.get("enabled") or config.get("dry_run"):
+        record["delivered"] = True
+        record["error"] = "dry_run" if config.get("dry_run") else "disabled"
+        return record
+
+    webhook_url = config.get("webhook_url", "").strip()
+    if not webhook_url:
+        record["error"] = "missing_webhook_url"
+        return record
+
+    try:
+        body = json.dumps(event, separators=(',', ':'), sort_keys=True)
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "SimCoaches-Leaderboard-Receiver"
+        }
+        if config.get("api_key"):
+            headers["Authorization"] = f"Bearer {config['api_key']}"
+        if config.get("signing_secret"):
+            headers["X-SimCoaches-Signature"] = sign_integration_payload(body, config["signing_secret"])
+
+        response = requests.post(
+            webhook_url,
+            data=body,
+            headers=headers,
+            timeout=int(config.get("timeout_seconds", 5))
+        )
+        record["status_code"] = response.status_code
+        record["delivered"] = 200 <= response.status_code < 300
+        if not record["delivered"]:
+            record["error"] = response.text[:500]
+    except Exception as e:
+        record["error"] = str(e)
+
+    return record
+
+def deliver_integration_event(event, queue_on_failure=True):
+    """Deliver a partner event; failures are logged and never raised."""
+    record = attempt_integration_delivery(event)
+    append_integration_log(record)
+    if queue_on_failure and not record["delivered"]:
+        append_pending_integration_event(event, record["error"] or f"HTTP {record['status_code']}")
+
+def retry_pending_integration_events(limit=25):
+    """Retry pending partner events and keep failures queued."""
+    pending = load_pending_integration_events()
+    if not pending:
+        return {"attempted": 0, "delivered": 0, "remaining": 0}
+
+    attempted = 0
+    delivered = 0
+    remaining = []
+
+    for record in pending:
+        if attempted >= limit:
+            remaining.append(record)
+            continue
+
+        event = record.get("event")
+        if not event:
+            continue
+
+        attempted += 1
+        delivery_record = attempt_integration_delivery(event)
+        append_integration_log(delivery_record)
+        if delivery_record["delivered"]:
+            delivered += 1
+        else:
+            record["reason"] = delivery_record["error"] or f"HTTP {delivery_record['status_code']}"
+            remaining.append(record)
+
+    rewrite_pending_integration_events(remaining)
+    return {"attempted": attempted, "delivered": delivered, "remaining": len(remaining)}
+
+def emit_integration_event(event):
+    """Send partner work in the background so racing stays responsive."""
+    thread = threading.Thread(target=deliver_integration_event, args=(event,), daemon=True)
+    thread.start()
+
+def read_leaderboard_entries(limit=10):
+    """Read fastest lap per driver from the existing CSV store."""
+    lap_times = {}
+    csv_file = 'lap_times.csv'
+    if not os.path.exists(csv_file):
+        return []
+
+    try:
+        with open(csv_file, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    driver_name = str(row.get('driver_name', '')).strip()
+                    if not driver_name:
+                        continue
+                    lap_time = float(row.get('lap_time', 0))
+                    if driver_name not in lap_times or lap_time < lap_times[driver_name]['lap_time']:
+                        lap_times[driver_name] = {
+                            'simulator_id': str(row.get('simulator_id', '')),
+                            'driver_name': driver_name,
+                            'lap_time': lap_time,
+                            'formatted_lap_time': format_lap_time(lap_time),
+                            'email': str(row.get('email', '')),
+                            'timestamp': str(row.get('timestamp', ''))
+                        }
+                except (ValueError, TypeError):
+                    continue
+    except Exception as e:
+        logger.warning(f"Error reading leaderboard entries: {e}")
+        return []
+
+    return sorted(lap_times.values(), key=lambda x: x['lap_time'])[:limit]
+
+LEADERBOARD_HTML_CONTENT = r"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sim Coaches Leaderboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #050505;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+        main { width: min(1100px, 100%); }
+        h1 {
+            margin: 0 0 24px;
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 96px 1fr 220px;
+            gap: 18px;
+            align-items: center;
+            min-height: 72px;
+            border-bottom: 1px solid rgba(255,255,255,0.14);
+            font-size: 30px;
+        }
+        .header {
+            min-height: 46px;
+            color: #9ca3af;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+        .position { color: #d4af37; font-weight: 800; text-align: center; }
+        .driver { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .time { color: #d4af37; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+        .empty { color: #9ca3af; font-size: 24px; padding: 48px 0; }
+        @media (max-width: 700px) {
+            body { padding: 18px; }
+            h1 { font-size: 30px; }
+            .row { grid-template-columns: 56px 1fr 130px; gap: 10px; min-height: 58px; font-size: 20px; }
+            .header { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Leaderboard</h1>
+        <section class="row header">
+            <div>Pos</div><div>Driver</div><div style="text-align:right;">Time</div>
+        </section>
+        <section id="entries"><div class="empty">Waiting for lap times...</div></section>
+    </main>
+    <script>
+        async function refreshLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard');
+                const data = await response.json();
+                const entries = data.entries || [];
+                const container = document.getElementById('entries');
+                if (!entries.length) {
+                    container.innerHTML = '<div class="empty">Waiting for lap times...</div>';
+                    return;
+                }
+                container.innerHTML = entries.map((entry, index) => `
+                    <div class="row">
+                        <div class="position">${index + 1}</div>
+                        <div class="driver">${escapeHtml(entry.driver_name)}</div>
+                        <div class="time">${escapeHtml(entry.formatted_lap_time)}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value || '';
+            return div.innerHTML;
+        }
+        refreshLeaderboard();
+        setInterval(refreshLeaderboard, 2000);
+    </script>
+</body>
+</html>
+"""
 
 # SMS configuration (supports Textbelt or Twilio)
 SMS_CONFIG_FILE = "sms_config.json"
@@ -1422,7 +1795,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-SimCoaches-Signature')
         self.end_headers()
 
     def do_POST(self):
@@ -1446,6 +1819,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_session_started(data)
             elif path == '/api/session/ended':
                 self.handle_session_ended(data)
+            elif path == '/api/integration/test-event':
+                self.handle_integration_test_event(data)
+            elif path == '/api/integration/retry-pending':
+                self.handle_retry_pending_integration_events(data)
             else:
                 # Default: handle as lap time submission
                 self.handle_lap_time(data)
@@ -1475,11 +1852,21 @@ class LapTimeHandler(BaseHTTPRequestHandler):
 
             # Get email if present, otherwise empty string
             driver_email = str(lap_data.get('email', ''))
+            driver_phone = str(lap_data.get('phone', ''))
+            session_id = str(lap_data.get('session_id', ''))
         except (ValueError, TypeError):
             print(f"Invalid data format: {lap_data}")
             self.send_response(400)
             self.end_headers()
             return
+
+        # Enrich legacy lap posts from active session tracking when available.
+        client_ip = self.client_address[0]
+        active_session = queue_data.get('active_sessions', {}).get(client_ip, {})
+        if not session_id:
+            session_id = active_session.get('session_id', '')
+        if not driver_phone:
+            driver_phone = active_session.get('phone', '')
 
         # Create clean data entry
         clean_data = {
@@ -1487,11 +1874,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'driver_name': driver_name,
             'lap_time': lap_time,
             'email': driver_email,
+            'phone': driver_phone,
+            'session_id': session_id,
             'timestamp': datetime.now().isoformat()
         }
 
         # Track connected simulator
-        client_ip = self.client_address[0]
         connected_simulators[simulator_id] = {
             'ip': client_ip,
             'last_seen': datetime.now(),
@@ -1507,11 +1895,42 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             writer = csv.DictWriter(f, fieldnames=['simulator_id', 'driver_name', 'lap_time', 'email', 'timestamp'])
             if not file_exists:
                 writer.writeheader()
-            writer.writerow(clean_data)
+            writer.writerow({
+                'simulator_id': clean_data['simulator_id'],
+                'driver_name': clean_data['driver_name'],
+                'lap_time': clean_data['lap_time'],
+                'email': clean_data['email'],
+                'timestamp': clean_data['timestamp']
+            })
 
         print(f"Successfully wrote data: {clean_data}")
+        emit_integration_event(build_race_completed_event(clean_data))
         self.send_response(200)
         self.end_headers()
+
+    def handle_integration_test_event(self, data):
+        """Emit a sample partner event without touching leaderboard data."""
+        sample = {
+            'simulator_id': str(data.get('simulator_id', '1')),
+            'driver_name': str(data.get('driver_name', 'Test Racer')),
+            'lap_time': float(data.get('lap_time', 83.456)),
+            'email': str(data.get('email', 'test@example.com')),
+            'phone': str(data.get('phone', '+17025550123')),
+            'session_id': str(data.get('session_id', f"test-{uuid.uuid4()}")),
+            'timestamp': datetime.now().isoformat()
+        }
+        event = build_race_completed_event(sample)
+        emit_integration_event(event)
+        self.send_json_response({'success': True, 'event': event})
+
+    def handle_retry_pending_integration_events(self, data):
+        """Retry pending partner webhook deliveries."""
+        try:
+            limit = int(data.get('limit', 25))
+        except (TypeError, ValueError):
+            limit = 25
+        result = retry_pending_integration_events(max(1, min(limit, 100)))
+        self.send_json_response({'success': True, **result})
 
     def handle_queue_join(self, data):
         """Add a guest to the queue"""
@@ -1605,6 +2024,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         simulator_ip = data.get('simulator_ip', '')
         driver_name = data.get('driver_name', '')
         queue_id = data.get('queue_id', '')
+        session_id = data.get('session_id', '')
+        phone = data.get('phone', '')
 
         if not simulator_ip:
             self.send_json_response({'success': False, 'error': 'simulator_ip is required'}, 400)
@@ -1613,7 +2034,9 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         # Record active session
         queue_data['active_sessions'][simulator_ip] = {
             'started_at': int(datetime.now().timestamp()),
-            'driver_name': driver_name
+            'driver_name': driver_name,
+            'session_id': session_id,
+            'phone': phone
         }
 
         # Remove from queue if queue_id provided
@@ -1666,6 +2089,15 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         elif path == '/api/queue/stats':
             self.handle_get_stats()
             return
+        elif path == '/api/integration/config':
+            self.handle_get_integration_config()
+            return
+        elif path == '/api/leaderboard':
+            self.handle_get_leaderboard()
+            return
+        elif path == '/leaderboard':
+            self.handle_leaderboard_page()
+            return
         else:
             # Default: track as connected simulator (ping only)
             sim_id = f"ping_{client_ip.replace('.', '_')}"
@@ -1678,6 +2110,36 @@ class LapTimeHandler(BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.end_headers()
+
+    def handle_get_leaderboard(self):
+        """Return read-only leaderboard data for browser displays."""
+        self.send_json_response({
+            'success': True,
+            'entries': read_leaderboard_entries()
+        })
+
+    def handle_leaderboard_page(self):
+        """Serve a browser-friendly mirror of the local leaderboard."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(LEADERBOARD_HTML_CONTENT.encode('utf-8'))
+
+    def handle_get_integration_config(self):
+        """Return non-secret partner integration status."""
+        config = load_integration_config()
+        pending_count = len(load_pending_integration_events())
+        self.send_json_response({
+            'success': True,
+            'enabled': bool(config.get('enabled')),
+            'dry_run': bool(config.get('dry_run')),
+            'webhook_configured': bool(config.get('webhook_url')),
+            'api_key_configured': bool(config.get('api_key')),
+            'signing_secret_configured': bool(config.get('signing_secret')),
+            'demo_url': config.get('demo_url', ''),
+            'pending_events': pending_count
+        })
 
     def handle_get_queue(self):
         """Get the full queue with wait time estimates"""
@@ -1767,6 +2229,7 @@ class ControlWindow(QMainWindow):
         self.leaderboard_window = None
         self.network_thread = None
         self.ensure_csv_exists()
+        load_integration_config()
         self.load_config()  # This will override defaults if config file exists
         self.setup_ui()
         self.start_network_thread()
@@ -2965,4 +3428,4 @@ def main():
     sys.exit(app.exec())
 
 if __name__ == '__main__':
-    main() 
+    main()
