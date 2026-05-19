@@ -6,6 +6,8 @@ This integration is intentionally separate from the working leaderboard display 
 
 The partner webhook runs after a lap result has already been accepted and written. If webhook delivery fails, local racing and the monitor display continue.
 
+For normal sessions, Receiver tracks the best lap during the active session and emits `race.completed` when the session ends. Legacy direct lap submissions with no session lifecycle still emit one event per accepted lap.
+
 ## Config
 
 Receiver creates `integration_config.json` on first run:

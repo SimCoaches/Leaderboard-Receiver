@@ -237,7 +237,10 @@ def attempt_integration_delivery(event):
 def deliver_integration_event(event, queue_on_failure=True):
     """Deliver a partner event; failures are logged and never raised."""
     record = attempt_integration_delivery(event)
-    append_integration_log(record)
+    if record.get("error") in ("dry_run", "disabled"):
+        append_integration_log({**record, "event": event})
+    else:
+        append_integration_log(record)
     if queue_on_failure and not record["delivered"]:
         append_pending_integration_event(event, record["error"] or f"HTTP {record['status_code']}")
 
@@ -1867,6 +1870,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             session_id = active_session.get('session_id', '')
         if not driver_phone:
             driver_phone = active_session.get('phone', '')
+        if not driver_email:
+            driver_email = active_session.get('email', '')
 
         # Create clean data entry
         clean_data = {
@@ -1904,7 +1909,21 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             })
 
         print(f"Successfully wrote data: {clean_data}")
-        emit_integration_event(build_race_completed_event(clean_data))
+        if active_session:
+            best_lap = active_session.get('best_lap_time')
+            if best_lap is None or lap_time < float(best_lap):
+                active_session['best_lap_time'] = lap_time
+                active_session['best_lap_timestamp'] = clean_data['timestamp']
+                active_session['simulator_id'] = simulator_id
+                active_session['email'] = driver_email
+                active_session['phone'] = driver_phone
+                active_session['session_id'] = session_id
+                active_session['driver_name'] = driver_name
+                save_queue_data()
+        else:
+            # Legacy direct lap submissions have no explicit session lifecycle,
+            # so keep emitting a partner event per accepted lap.
+            emit_integration_event(build_race_completed_event(clean_data))
         self.send_response(200)
         self.end_headers()
 
@@ -2026,6 +2045,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         queue_id = data.get('queue_id', '')
         session_id = data.get('session_id', '')
         phone = data.get('phone', '')
+        email = data.get('email', '')
 
         if not simulator_ip:
             self.send_json_response({'success': False, 'error': 'simulator_ip is required'}, 400)
@@ -2036,7 +2056,11 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'started_at': int(datetime.now().timestamp()),
             'driver_name': driver_name,
             'session_id': session_id,
-            'phone': phone
+            'phone': phone,
+            'email': email,
+            'best_lap_time': None,
+            'best_lap_timestamp': None,
+            'simulator_id': ''
         }
 
         # Remove from queue if queue_id provided
@@ -2057,8 +2081,21 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             return
 
         # Remove from active sessions
+        session = None
         if simulator_ip in queue_data['active_sessions']:
-            del queue_data['active_sessions'][simulator_ip]
+            session = queue_data['active_sessions'].pop(simulator_ip)
+
+        if session and session.get('best_lap_time') is not None:
+            event_data = {
+                'simulator_id': session.get('simulator_id', ''),
+                'driver_name': session.get('driver_name', ''),
+                'lap_time': session.get('best_lap_time'),
+                'email': session.get('email', ''),
+                'phone': session.get('phone', ''),
+                'session_id': session.get('session_id', ''),
+                'timestamp': session.get('best_lap_timestamp') or datetime.now().isoformat()
+            }
+            emit_integration_event(build_race_completed_event(event_data))
 
         # Add to session history
         if duration_seconds > 0:
