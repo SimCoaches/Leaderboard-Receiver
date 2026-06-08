@@ -213,6 +213,46 @@ Example exposed test URL:
 https://temporary-test-url.example.com/api/integration/test-event
 ```
 
+## Partner Self-Test Without Sim Coaches Source
+
+The partner does not need the Sim Coaches application source code to test their receiving endpoint.
+
+Sim Coaches can send the partner these files only:
+
+- `samples/race.completed.sample.json`
+- `samples/send_sample_webhook.py`
+- `samples/simcoaches-webhook-self-test.postman_collection.json`
+- `schemas/race.completed.schema.json`
+
+Python self-test:
+
+```powershell
+python samples\send_sample_webhook.py `
+  --url "https://partner.example.com/webhooks/simcoaches/race-completed" `
+  --api-key "shared-api-key" `
+  --signing-secret "shared-signing-secret"
+```
+
+That command sends a signed `race.completed` sample directly to the partner's staging webhook URL. It uses the same header names and HMAC signing behavior as Receiver.
+
+Postman self-test:
+
+1. Import `samples/simcoaches-webhook-self-test.postman_collection.json`.
+2. Set collection variables:
+   - `webhook_url`
+   - `api_key`
+   - `signing_secret`
+3. Send `Send signed race.completed sample`.
+4. Confirm the partner endpoint receives the event and verifies `X-SimCoaches-Signature`.
+
+Successful self-test criteria:
+
+- Partner receives an HTTP `POST`.
+- `Authorization: Bearer <api_key>` matches the shared API key.
+- `X-SimCoaches-Signature` verifies against the raw request body.
+- Payload validates against `schemas/race.completed.schema.json`.
+- Partner can safely de-duplicate by `event_id`.
+
 ## Delivery Logs And Retry
 
 Receiver appends delivery records to `integration_events.jsonl`. This is for troubleshooting and dry-run review; it is not used by the leaderboard display.
