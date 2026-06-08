@@ -1,47 +1,138 @@
 # Partner Integration
 
-This integration is intentionally separate from the working leaderboard display path:
+## Purpose
 
-`Sender -> Receiver -> lap_times.csv -> PyQt leaderboard`
+Sim Coaches Receiver can send a partner webhook after a racer completes a session.
 
-The partner webhook runs after a lap result has already been accepted and written. If webhook delivery fails, local racing and the monitor display continue.
+The normal event flow is:
 
-For normal sessions, Receiver tracks the best lap during the active session and emits `race.completed` when the session ends. Legacy direct lap submissions with no session lifecycle still emit one event per accepted lap.
+```text
+Sender sign-in -> Receiver session tracking -> best lap saved -> race.completed webhook -> partner system
+```
 
-## Config
+The webhook integration is intentionally separate from the working leaderboard display path:
 
-Receiver creates `integration_config.json` on first run:
+```text
+Sender -> Receiver -> lap_times.csv -> PyQt leaderboard
+```
+
+If webhook delivery fails, local racing and the monitor display continue.
+
+## Who Provides What
+
+Sim Coaches provides:
+
+- `race.completed` JSON schema and sample payload.
+- API key and webhook signing secret, unless the partner prefers to generate them.
+- Test-event endpoint on a staging/local Receiver.
+- Live leaderboard display URL once the Receiver machine is on the event network.
+
+Partner provides:
+
+- Staging webhook URL where Sim Coaches should POST test race events.
+- Production webhook URL for the live event.
+- Any field naming or validation requirements that differ from this schema.
+
+Important: `webhook_url` is the partner's receiving endpoint. Sim Coaches posts race events to that URL.
+
+## Event Timing
+
+For normal sessions, Receiver tracks the best lap during the active session and emits one `race.completed` event when the session ends.
+
+Legacy direct lap submissions with no explicit session lifecycle still emit one event per accepted lap. The event integration should use normal session start/end flow for production.
+
+When Lead Gen is enabled in Sender, racer email and phone are required before a driver can start. Those fields are carried through registration, queue assignment, session start, lap submission, and the final `race.completed` webhook.
+
+## Configuration
+
+Receiver creates `integration_config.json` on first run in the Receiver working directory. The real file is gitignored because it contains secrets.
+
+Use `integration_config.example.json` as a template:
 
 ```json
 {
-  "enabled": false,
-  "dry_run": true,
-  "webhook_url": "",
-  "api_key": "",
-  "signing_secret": "",
+  "enabled": true,
+  "dry_run": false,
+  "webhook_url": "https://partner.example.com/webhooks/simcoaches/race-completed",
+  "api_key": "replace-with-shared-api-key",
+  "signing_secret": "replace-with-shared-signing-secret",
   "timeout_seconds": 5,
-  "demo_url": ""
+  "demo_url": "https://partner.example.com/demo"
 }
 ```
 
-- `enabled`: must be `true` before real delivery happens.
-- `dry_run`: logs generated events without sending them.
-- `webhook_url`: partner endpoint for race-completed events.
-- `api_key`: sent as `Authorization: Bearer ...` when present.
+Fields:
+
+- `enabled`: must be `true` before live delivery happens.
+- `dry_run`: when `true`, Receiver logs generated events without sending them.
+- `webhook_url`: partner endpoint for `race.completed` events.
+- `api_key`: sent as `Authorization: Bearer <api_key>` when present.
 - `signing_secret`: used for `X-SimCoaches-Signature` HMAC-SHA256.
+- `timeout_seconds`: outbound request timeout.
 - `demo_url`: optional URL included in payloads.
 
-## Endpoints
+Generate credentials with:
 
-- `GET /api/integration/config`: returns non-secret integration status.
-- `POST /api/integration/test-event`: generates a sample `race.completed` event and runs it through the same delivery path.
-- `POST /api/integration/retry-pending`: retries queued webhook deliveries. Optional body: `{ "limit": 25 }`.
-- `GET /api/leaderboard`: read-only JSON for the current top 10 leaderboard.
-- `GET /leaderboard`: browser display that refreshes from `lap_times.csv` every 2 seconds.
+```powershell
+python scripts\generate_integration_credentials.py
+```
+
+This prints a fresh API key and signing secret. Share those values with the partner over a secure channel.
+
+To generate credentials and write a local `integration_config.json` after the partner gives us a staging URL:
+
+```powershell
+python scripts\generate_integration_credentials.py `
+  --webhook-url "https://partner.example.com/webhooks/simcoaches/race-completed" `
+  --demo-url "https://partner.example.com/demo" `
+  --write-config
+```
+
+`integration_config.json` is ignored by git and should stay local to the Receiver machine.
+
+## Outbound Webhook Request
+
+Receiver sends an HTTP `POST` to `webhook_url`.
+
+Headers:
+
+```http
+Content-Type: application/json
+User-Agent: SimCoaches-Leaderboard-Receiver
+Authorization: Bearer <api_key>
+X-SimCoaches-Signature: <hex hmac sha256>
+```
+
+`Authorization` is omitted when `api_key` is blank. `X-SimCoaches-Signature` is omitted when `signing_secret` is blank.
+
+The signature is:
+
+```text
+hex(HMAC_SHA256(raw_request_body, signing_secret))
+```
+
+Partner should verify the signature against the exact raw body bytes received. Python example:
+
+```python
+import hashlib
+import hmac
+
+def valid_signature(raw_body: bytes, header_signature: str, signing_secret: str) -> bool:
+    expected = hmac.new(
+        signing_secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, header_signature or "")
+```
+
+Partners should de-duplicate on `event_id`. Failed deliveries can be retried and will keep the same `event_id`.
 
 ## Payload
 
 Schema: `schemas/race.completed.schema.json`
+
+Sample: `samples/race.completed.sample.json`
 
 ```json
 {
@@ -59,20 +150,90 @@ Schema: `schemas/race.completed.schema.json`
   "formatted_race_time": "01:23.456",
   "simulator_id": "1",
   "completed_at": "2026-05-19T12:30:00.000000",
-  "demo_url": "https://example.com/demo"
+  "demo_url": "https://partner.example.com/demo"
 }
 ```
 
-## Delivery Log
+Notes:
+
+- `race_time_seconds` is the racer's best lap for the completed session.
+- `formatted_race_time` is the display-ready version of the same value.
+- `session_id` is stable for the driver's active session.
+- `event_id` is unique for the webhook event and should be used for idempotency.
+- `racer.email` and `racer.phone` are guaranteed when Lead Gen is enabled.
+
+## Receiver Test Endpoints
+
+These endpoints are served by Receiver on its configured host/port, usually:
+
+```text
+http://<receiver-ip>:5000
+```
+
+Endpoints:
+
+- `GET /api/integration/config`: returns non-secret integration status.
+- `POST /api/integration/test-event`: generates a sample `race.completed` event and runs it through the delivery path.
+- `POST /api/integration/retry-pending`: retries queued webhook deliveries. Optional body: `{ "limit": 25 }`.
+- `GET /api/leaderboard`: read-only JSON for the current top 10 leaderboard.
+- `GET /leaderboard`: browser display that refreshes from `lap_times.csv`.
+
+Trigger a local test event:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:5000/api/integration/test-event" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"driver_name":"Alex Racer","email":"alex@example.com","phone":"+17025550123","lap_time":83.456,"simulator_id":"1","session_id":"test-session-001"}'
+```
+
+Check integration status:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5000/api/integration/config" -Method GET
+```
+
+## Remote Testing
+
+Preferred remote test flow:
+
+1. Partner sends Sim Coaches a public staging `webhook_url`.
+2. Sim Coaches generates and shares an API key and signing secret.
+3. Sim Coaches updates `integration_config.json` with staging values.
+4. Sim Coaches starts Receiver and triggers `POST /api/integration/test-event`.
+5. Partner confirms receipt, signature verification, and payload mapping.
+6. Sim Coaches runs a real sign-in -> lap -> session-end test.
+
+If the partner needs to trigger test events from afar, expose Receiver temporarily through a tunnel such as ngrok or cloudflared, then share only the temporary staging URL. Do not leave a public tunnel open after testing.
+
+Example exposed test URL:
+
+```text
+https://temporary-test-url.example.com/api/integration/test-event
+```
+
+## Delivery Logs And Retry
 
 Receiver appends delivery records to `integration_events.jsonl`. This is for troubleshooting and dry-run review; it is not used by the leaderboard display.
 
-Failed live deliveries are queued in `integration_pending.jsonl` and can be retried with `POST /api/integration/retry-pending`. Disabled and dry-run events are logged but not queued.
+Failed live deliveries are queued in `integration_pending.jsonl` and can be retried with:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:5000/api/integration/retry-pending" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"limit":25}'
+```
+
+Disabled and dry-run events are logged but not queued.
 
 ## Safety Notes
 
 - The existing CSV format is unchanged.
-- Integration is disabled by default.
+- Integration is disabled and dry-run by default.
 - Partner delivery happens in a background thread.
 - Webhook failures are logged and do not block lap submissions.
 - Live webhook failures are queued for retry on disk.
+- Public test tunnels should be used only for staging and closed immediately after testing.

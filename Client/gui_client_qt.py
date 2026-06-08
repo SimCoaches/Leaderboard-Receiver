@@ -28,7 +28,7 @@ connected_simulators = {}  # {simulator_id: {'ip': ip, 'last_seen': timestamp, '
 
 # Queue system storage
 queue_data = {
-    "queue": [],  # [{id, name, phone, joined_at, assigned_to}]
+    "queue": [],  # [{id, name, email, phone, joined_at, assigned_to}]
     "session_history": [],  # Last 50 completed sessions [{simulator_ip, duration_seconds, ended_at}]
     "active_sessions": {},  # {simulator_ip: {started_at, driver_name}}
     "last_updated": 0
@@ -1954,8 +1954,9 @@ class LapTimeHandler(BaseHTTPRequestHandler):
     def handle_queue_join(self, data):
         """Add a guest to the queue"""
         global queue_data
-        name = data.get('name', '').strip()
-        phone = data.get('phone', '').strip()
+        name = str(data.get('name') or '').strip()
+        email = str(data.get('email') or '').strip()
+        phone = str(data.get('phone') or '').strip()
 
         if not name:
             self.send_json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -1966,6 +1967,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         entry = {
             'id': queue_id,
             'name': name,
+            'email': email,
             'phone': phone,
             'joined_at': int(datetime.now().timestamp()),
             'assigned_to': None
@@ -2029,10 +2031,11 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         entry['assigned_to'] = simulator_ip
         save_queue_data()
 
-        # Return phone number so Sender can handle SMS
+        # Return contact info so Sender can start the simulator session with it.
         self.send_json_response({
             'success': True,
             'name': entry.get('name'),
+            'email': entry.get('email', ''),
             'phone': entry.get('phone', ''),
             'simulator_ip': simulator_ip
         })
