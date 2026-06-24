@@ -63,8 +63,8 @@ Use `integration_config.example.json` as a template:
 
 Fields:
 
-- `enabled`: must be `true` before live delivery happens.
-- `dry_run`: when `true`, Receiver logs generated events without sending them.
+- `enabled`: Receiver sets this automatically when webhook URL, API key, and signing secret are saved.
+- `dry_run`: kept for backwards compatibility; event-day setup saves this as `false`.
 - `webhook_url`: partner endpoint for `race.completed` events.
 - `api_key`: sent as `Authorization: Bearer <api_key>` when present.
 - `signing_secret`: used for `X-SimCoaches-Signature` HMAC-SHA256.
@@ -98,18 +98,14 @@ The Receiver app also has a `Partner` tab for event-day setup without editing fi
 
 1. Open Receiver.
 2. Go to `Partner`.
-3. If the partner already built against previously shared credentials, paste those exact values into `API Key` and `Signing Secret`.
-4. Only click `Generate New Credentials` when intentionally rotating credentials and the partner is ready to update their software.
-5. Copy `API Key` and `Signing Secret` for the partner if they need to confirm what Receiver is using.
-6. Paste the partner's staging or production `Webhook URL`.
-7. Set `Enabled`.
-8. Set `Live Send` when the partner is ready to receive real HTTP test requests. Leave `Dry Run` on if we only want to confirm local config.
-9. Click `Save Partner Config`.
-10. Click `Send Test Webhook`.
+3. Confirm `API Key` and `Signing Secret` are already set.
+4. Copy `API Key` and `Signing Secret` for the partner if they need to confirm what Receiver is using.
+5. Paste the partner's staging or production `Webhook URL`.
+6. Click `Save Vincent Setup` or the main `Save Settings` button.
+7. Click `Send Test Webhook`.
 
 Expected results:
 
-- `Dry run confirmed`: Receiver built the signed event but did not send HTTP.
 - `Test delivered: ... HTTP 2xx`: the partner endpoint received and accepted the signed event.
 - `Test failed: ...`: check the webhook URL, network, API key, signing secret, or partner logs.
 
@@ -290,12 +286,12 @@ Invoke-RestMethod `
   -Body '{"limit":25}'
 ```
 
-Disabled and dry-run events are logged but not queued.
+Events are not sent until a webhook URL is saved. Failed live deliveries are queued for retry.
 
 ## Safety Notes
 
 - The existing CSV format is unchanged.
-- Integration is disabled and dry-run by default.
+- Webhook delivery stays inactive until the webhook URL is saved; then it sends live automatically.
 - Partner delivery happens in a background thread.
 - Webhook failures are logged and do not block lap submissions.
 - Live webhook failures are queued for retry on disk.

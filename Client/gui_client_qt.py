@@ -63,7 +63,7 @@ DISPLAY_CONFIG_DEFAULTS = {
 }
 integration_config = {
     "enabled": False,
-    "dry_run": True,
+    "dry_run": False,
     "webhook_url": "",
     "api_key": VINCENT_API_KEY,
     "signing_secret": VINCENT_SIGNING_SECRET,
@@ -3315,7 +3315,8 @@ class ControlWindow(QMainWindow):
         layout.setContentsMargins(14, 14, 14, 14)
 
         description = QLabel(
-            "Vincent's credentials are preloaded. Paste his team's webhook URL, then send a signed test event."
+            "Vincent's credentials are preloaded. Paste his team's webhook URL and save. "
+            "When the webhook URL is saved, Receiver automatically sends live signed lap events."
         )
         description.setWordWrap(True)
         description.setStyleSheet("color: #cccccc; font-size: 12px;")
@@ -3333,6 +3334,7 @@ class ControlWindow(QMainWindow):
 
         self.partner_webhook_url = QLineEdit(str(config.get('webhook_url', '')))
         self.partner_webhook_url.setPlaceholderText("https://partner.example.com/webhooks/simcoaches/race-completed")
+        self.partner_webhook_url.textChanged.connect(lambda _text: self.update_partner_status_summary())
         layout.addLayout(make_row("Webhook URL:", self.partner_webhook_url))
 
         self.partner_demo_url = QLineEdit(str(config.get('demo_url', '')))
@@ -3351,29 +3353,6 @@ class ControlWindow(QMainWindow):
         timeout_row.addWidget(QLabel("seconds"))
         timeout_row.addStretch()
         layout.addLayout(timeout_row)
-
-        mode_row = QHBoxLayout()
-        mode_row.setSpacing(8)
-        mode_label = QLabel("Mode:")
-        mode_label.setFixedWidth(130)
-        mode_row.addWidget(mode_label)
-
-        self.partner_enabled_toggle = QPushButton()
-        self.partner_enabled_toggle.setCheckable(True)
-        self.partner_enabled_toggle.setChecked(bool(config.get('enabled')))
-        self.partner_enabled_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
-        self.partner_enabled_toggle.setMinimumSize(120, 38)
-        mode_row.addWidget(self.partner_enabled_toggle)
-
-        self.partner_live_toggle = QPushButton()
-        self.partner_live_toggle.setCheckable(True)
-        self.partner_live_toggle.setChecked(not bool(config.get('dry_run', True)))
-        self.partner_live_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
-        self.partner_live_toggle.setMinimumSize(120, 38)
-        mode_row.addWidget(self.partner_live_toggle)
-        mode_row.addStretch()
-        layout.addLayout(mode_row)
-        self.update_partner_toggle_labels()
 
         credential_header = QLabel("Vincent Credentials")
         credential_header.setStyleSheet("font-weight: bold; color: #007acc; margin-top: 4px;")
@@ -3406,14 +3385,14 @@ class ControlWindow(QMainWindow):
 
         action_row = QHBoxLayout()
         action_row.setSpacing(8)
-        save_btn = QPushButton("Save Partner Config")
+        save_btn = QPushButton("Save Vincent Setup")
         save_btn.setMinimumHeight(40)
-        save_btn.clicked.connect(lambda: self.save_partner_integration_config("Partner config saved."))
+        save_btn.clicked.connect(lambda: self.save_partner_integration_config("Vincent setup saved."))
         action_row.addWidget(save_btn)
 
         test_btn = QPushButton("Send Test Webhook")
         test_btn.setMinimumHeight(40)
-        test_btn.setToolTip("Sends a signed race.completed test event to the configured webhook URL when enabled and Live Send is selected")
+        test_btn.setToolTip("Sends a signed race.completed test event to Vincent's configured webhook URL")
         test_btn.clicked.connect(self.send_partner_test_webhook)
         action_row.addWidget(test_btn)
         layout.addLayout(action_row)
@@ -3440,36 +3419,39 @@ class ControlWindow(QMainWindow):
         tab_layout.addWidget(scroll)
         return tab
 
-    def update_partner_toggle_labels(self):
-        if hasattr(self, 'partner_enabled_toggle'):
-            enabled = self.partner_enabled_toggle.isChecked()
-            self.partner_enabled_toggle.setText("Enabled" if enabled else "Disabled")
-            self.partner_enabled_toggle.setStyleSheet(
-                "background-color: #4ec9b0; color: #1e1e1e; font-weight: bold;"
-                if enabled else
-                "background-color: #3c3c3c; color: #ffffff;"
-            )
-
-        if hasattr(self, 'partner_live_toggle'):
-            live = self.partner_live_toggle.isChecked()
-            self.partner_live_toggle.setText("Live Send" if live else "Dry Run")
-            self.partner_live_toggle.setStyleSheet(
-                "background-color: #f48771; color: #1e1e1e; font-weight: bold;"
-                if live else
-                "background-color: #3c3c3c; color: #ffffff;"
-            )
-
     def update_partner_status_summary(self, extra_message=""):
         if not hasattr(self, 'partner_status_label'):
             return
 
         config = load_integration_config()
+        webhook_url = str(config.get('webhook_url', '')).strip()
+        api_key = str(config.get('api_key', '')).strip()
+        signing_secret = str(config.get('signing_secret', '')).strip()
+
+        if hasattr(self, 'partner_webhook_url'):
+            webhook_url = self.partner_webhook_url.text().strip()
+        if hasattr(self, 'partner_api_key'):
+            api_key = self.partner_api_key.text().strip()
+        if hasattr(self, 'partner_signing_secret'):
+            signing_secret = self.partner_signing_secret.text().strip()
+
+        saved_webhook_url = str(config.get('webhook_url', '')).strip()
+        form_has_unsaved_webhook = webhook_url != saved_webhook_url
+        ready = bool(webhook_url and api_key and signing_secret)
+
         parts = []
-        parts.append("Integration: enabled" if config.get('enabled') else "Integration: disabled")
-        parts.append("Mode: live send" if not config.get('dry_run', True) else "Mode: dry run")
-        parts.append("Webhook URL: set" if config.get('webhook_url') else "Webhook URL: missing")
-        parts.append("Vincent API key: set" if config.get('api_key') else "Vincent API key: missing")
-        parts.append("Vincent signing secret: set" if config.get('signing_secret') else "Vincent signing secret: missing")
+        if ready and form_has_unsaved_webhook:
+            parts.append("Status: webhook URL entered but not saved yet")
+        elif ready and config.get('enabled') and not config.get('dry_run', False):
+            parts.append("Status: active - live lap webhooks will send")
+        elif ready:
+            parts.append("Status: ready - save to activate live sending")
+        else:
+            parts.append("Status: waiting for Vincent webhook URL")
+        parts.append("Sending: automatic live send when webhook URL is saved")
+        parts.append("Webhook URL: set" if webhook_url else "Webhook URL: missing")
+        parts.append("Vincent API key: set" if api_key else "Vincent API key: missing")
+        parts.append("Vincent signing secret: set" if signing_secret else "Vincent signing secret: missing")
 
         message = "\n".join(parts)
         if extra_message:
@@ -3486,12 +3468,17 @@ class ControlWindow(QMainWindow):
         timeout_seconds = max(1, min(timeout_seconds, 30))
         self.partner_timeout.setText(str(timeout_seconds))
 
+        webhook_url = self.partner_webhook_url.text().strip()
+        api_key = self.partner_api_key.text().strip()
+        signing_secret = self.partner_signing_secret.text().strip()
+        ready = bool(webhook_url and api_key and signing_secret)
+
         integration_config.update({
-            "enabled": bool(self.partner_enabled_toggle.isChecked()),
-            "dry_run": not bool(self.partner_live_toggle.isChecked()),
-            "webhook_url": self.partner_webhook_url.text().strip(),
-            "api_key": self.partner_api_key.text().strip(),
-            "signing_secret": self.partner_signing_secret.text().strip(),
+            "enabled": ready,
+            "dry_run": False,
+            "webhook_url": webhook_url,
+            "api_key": api_key,
+            "signing_secret": signing_secret,
             "timeout_seconds": timeout_seconds,
             "demo_url": self.partner_demo_url.text().strip(),
         })
@@ -3538,11 +3525,7 @@ class ControlWindow(QMainWindow):
         record = attempt_integration_delivery(event)
         append_integration_log({**record, "event": event})
 
-        if record.get('error') == 'disabled':
-            self.update_partner_status_summary("Test not sent: Integration is disabled. Turn it on and save.")
-        elif record.get('error') == 'dry_run':
-            self.update_partner_status_summary("Dry run confirmed: signed test event was built but no HTTP request was sent.")
-        elif record.get('delivered'):
+        if record.get('delivered'):
             self.update_partner_status_summary(f"Test delivered: Vincent's endpoint returned HTTP {record.get('status_code')}.")
         else:
             status = record.get('status_code')
@@ -3829,8 +3812,15 @@ class ControlWindow(QMainWindow):
         # Update the server URL display in the UI
         self.server_url_entry.setText(self.config['server_url'])
         self.update_mirror_url_display()
-        
-        self.statusBar().showMessage("Settings saved successfully")
+
+        partner_saved = True
+        if hasattr(self, 'partner_webhook_url'):
+            partner_saved = self.save_partner_integration_config("Vincent setup saved.")
+
+        if partner_saved:
+            self.statusBar().showMessage("Settings saved successfully")
+        else:
+            self.statusBar().showMessage("Settings saved, but Vincent setup needs attention")
     
     def start_network_thread(self):
         if self.network_thread:
