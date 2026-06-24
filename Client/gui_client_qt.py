@@ -336,6 +336,7 @@ def read_leaderboard_entries(limit=10):
 def load_display_config_for_mirror():
     """Load non-secret display settings used by the browser leaderboard mirror."""
     config = DISPLAY_CONFIG_DEFAULTS.copy()
+    loaded = {}
     if os.path.exists(DISPLAY_CONFIG_FILE):
         try:
             with open(DISPLAY_CONFIG_FILE, 'r') as f:
@@ -345,6 +346,23 @@ def load_display_config_for_mirror():
                     config[key] = loaded[key]
         except Exception as e:
             logger.warning(f"Error loading mirror display config: {e}")
+
+    # Match the desktop window's in-memory migration for older config files.
+    orientation = str(config.get('orientation', 'horizontal')).lower()
+    if orientation not in ('horizontal', 'vertical'):
+        orientation = 'horizontal'
+        config['orientation'] = orientation
+    if loaded:
+        if orientation == 'vertical':
+            if 'horizontal_offset_v' not in loaded and 'horizontal_offset' in loaded:
+                config['horizontal_offset_v'] = loaded.get('horizontal_offset', 0)
+            if 'vertical_offset_v' not in loaded and 'vertical_offset' in loaded:
+                config['vertical_offset_v'] = loaded.get('vertical_offset', 0)
+        else:
+            if 'horizontal_offset_h' not in loaded and 'horizontal_offset' in loaded:
+                config['horizontal_offset_h'] = loaded.get('horizontal_offset', 0)
+            if 'vertical_offset_h' not in loaded and 'vertical_offset' in loaded:
+                config['vertical_offset_h'] = loaded.get('vertical_offset', 0)
 
     background_image = str(config.get('background_image') or '')
     has_background = bool(background_image and os.path.isfile(background_image))
@@ -369,6 +387,12 @@ LEADERBOARD_HTML_CONTENT = r"""
             --entry-opacity: 220;
             --header-font-size: 30px;
             --entry-font-size: 30px;
+            --podium-position-font-size: 32px;
+            --position-col: 100px;
+            --driver-col: 484px;
+            --time-col: 180px;
+            --column-gap: 20px;
+            --content-padding: 30px;
         }
         * {
             box-sizing: border-box;
@@ -415,27 +439,27 @@ LEADERBOARD_HTML_CONTENT = r"""
         .header,
         .row {
             display: grid;
-            grid-template-columns: 100px 1fr 180px;
-            column-gap: 20px;
+            grid-template-columns: var(--position-col) var(--driver-col) var(--time-col);
+            column-gap: var(--column-gap);
             align-items: center;
-            padding: 0 30px;
+            justify-content: start;
+            padding: 0 var(--content-padding);
         }
         .header {
             height: var(--row-height);
             background-color: rgba(50, 50, 50, calc(var(--header-opacity) / 255));
-            border-top-left-radius: 10px;
-            border-top-right-radius: 10px;
             color: #ffffff;
             font-size: var(--header-font-size);
-            font-weight: 800;
+            font-weight: 700;
             letter-spacing: 0;
+        }
+        .header > div {
+            text-align: center;
         }
         .entries {
             height: calc(var(--board-height) - var(--row-height));
             overflow: hidden;
             background-color: rgba(40, 40, 40, calc(var(--entry-opacity) / 255));
-            border-bottom-left-radius: 10px;
-            border-bottom-right-radius: 10px;
         }
         .row {
             height: var(--row-height);
@@ -448,43 +472,66 @@ LEADERBOARD_HTML_CONTENT = r"""
             text-align: center;
             border-left: 4px solid transparent;
             padding-left: 12px;
+            overflow: hidden;
+            white-space: nowrap;
         }
         .driver {
             color: #ffffff;
+            font-size: var(--entry-font-size);
+            font-weight: 400;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
         .time {
             color: #b0b0b0;
+            font-size: var(--entry-font-size);
+            font-weight: 400;
             font-variant-numeric: tabular-nums;
             text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
         }
         .pos-1,
         .pos-2,
         .pos-3 {
             background-color: rgba(255, 255, 255, 0.03);
         }
+        .pos-1 {
+            border-bottom-color: rgba(255, 255, 255, 0.06);
+        }
         .pos-1 .position,
         .pos-1 .time {
             color: #d4af37;
+            font-weight: 700;
         }
         .pos-1 .position {
             border-left-color: #d4af37;
+            font-size: var(--podium-position-font-size);
+        }
+        .pos-2 {
+            border-bottom-color: rgba(255, 255, 255, 0.06);
         }
         .pos-2 .position,
         .pos-2 .time {
             color: #a8a9ad;
+            font-weight: 700;
         }
         .pos-2 .position {
             border-left-color: #a8a9ad;
+            font-size: var(--podium-position-font-size);
+        }
+        .pos-3 {
+            border-bottom-color: rgba(255, 255, 255, 0.06);
         }
         .pos-3 .position,
         .pos-3 .time {
             color: #cd7f32;
+            font-weight: 700;
         }
         .pos-3 .position {
             border-left-color: #cd7f32;
+            font-size: var(--podium-position-font-size);
         }
         .empty {
             height: var(--row-height);
@@ -496,6 +543,30 @@ LEADERBOARD_HTML_CONTENT = r"""
         }
         .offline .empty {
             color: #f48771;
+        }
+        .fullscreen-button {
+            position: fixed;
+            right: 16px;
+            top: 16px;
+            z-index: 10;
+            min-width: 112px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 4px;
+            background: rgba(20, 20, 20, 0.78);
+            color: #ffffff;
+            font: 700 13px Arial, sans-serif;
+            cursor: pointer;
+            transition: opacity 0.18s ease, background-color 0.18s ease;
+        }
+        .fullscreen-button:hover,
+        .fullscreen-button:focus-visible {
+            background: rgba(50, 50, 50, 0.92);
+            outline: none;
+        }
+        .fullscreen-active .fullscreen-button {
+            opacity: 0;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -513,10 +584,12 @@ LEADERBOARD_HTML_CONTENT = r"""
                 </div>
             </section>
         </main>
+        <button class="fullscreen-button" id="fullscreenButton" type="button" title="Open browser fullscreen">Full Screen</button>
     </div>
     <script>
         const stage = document.getElementById('stage');
         const entriesContainer = document.getElementById('entries');
+        const fullscreenButton = document.getElementById('fullscreenButton');
         let displayConfig = {};
 
         function asNumber(value, fallback) {
@@ -556,7 +629,9 @@ LEADERBOARD_HTML_CONTENT = r"""
             document.documentElement.style.setProperty('--header-opacity', opacity);
             document.documentElement.style.setProperty('--entry-opacity', opacity);
             document.documentElement.style.setProperty('--header-font-size', `${asNumber(displayConfig.header_font_size, 30)}px`);
-            document.documentElement.style.setProperty('--entry-font-size', `${asNumber(displayConfig.entry_font_size || displayConfig.other_font_size, 30)}px`);
+            const entryFontSize = asNumber(displayConfig.other_font_size, asNumber(displayConfig.entry_font_size, 30));
+            document.documentElement.style.setProperty('--entry-font-size', `${entryFontSize}px`);
+            document.documentElement.style.setProperty('--podium-position-font-size', `${entryFontSize + 2}px`);
 
             if (displayConfig.has_background) {
                 stage.style.backgroundImage = `url('/leaderboard-background?v=${displayConfig.background_version || 0}')`;
@@ -631,10 +706,37 @@ LEADERBOARD_HTML_CONTENT = r"""
             return `${minutes}:${remainder}`;
         }
 
+        function fullscreenElement() {
+            return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        }
+
+        async function requestMirrorFullscreen() {
+            const root = document.documentElement;
+            const request = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+            if (!fullscreenElement() && request) {
+                try {
+                    await request.call(root);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+            syncFullscreenButton();
+        }
+
+        function syncFullscreenButton() {
+            const active = Boolean(fullscreenElement());
+            document.body.classList.toggle('fullscreen-active', active);
+        }
+
         window.addEventListener('resize', applyScale);
+        fullscreenButton.addEventListener('click', requestMirrorFullscreen);
+        stage.addEventListener('dblclick', requestMirrorFullscreen);
+        document.addEventListener('fullscreenchange', syncFullscreenButton);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
         refreshConfig().then(refreshLeaderboard);
         setInterval(refreshConfig, 5000);
         setInterval(refreshLeaderboard, 1000);
+        syncFullscreenButton();
     </script>
 </body>
 </html>
