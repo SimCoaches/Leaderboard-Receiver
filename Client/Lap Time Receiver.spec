@@ -1,12 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import PyQt6.sip
+
+sip_binary = PyQt6.sip.__file__
 
 a = Analysis(
     ['gui_client_qt.py'],
     pathex=[],
-    binaries=[],
+    binaries=[(sip_binary, 'PyQt6')],
     datas=[],
-    hiddenimports=['PyQt6.sip'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

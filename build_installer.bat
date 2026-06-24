@@ -4,7 +4,7 @@ echo ======================================
 
 echo Step 1: Building executable with PyInstaller...
 cd Client
-python -m PyInstaller --name="Lap Time Receiver" --onefile --noconsole --hidden-import=PyQt6.sip gui_client_qt.py
+python -m PyInstaller --clean --noconfirm "Lap Time Receiver.spec"
 cd ..
 
 echo Step 2: Creating Output directory for installer...

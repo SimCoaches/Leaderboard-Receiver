@@ -61,7 +61,7 @@ begin
   if CurStep = ssPostInstall then begin
     // Create empty lap_times.csv if it doesn't exist
     if not FileExists(ExpandConstant('{app}\lap_times.csv')) then begin
-      SaveStringToFile(ExpandConstant('{app}\lap_times.csv'), 'simulator_id,driver_name,lap_time,email,timestamp' + #13#10, False);
+      SaveStringToFile(ExpandConstant('{app}\lap_times.csv'), 'simulator_id,driver_name,lap_time,email,phone,timestamp' + #13#10, False);
     end;
     
     // Create default config.json if it doesn't exist
