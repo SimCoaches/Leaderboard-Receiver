@@ -41,6 +41,7 @@ MAX_SESSION_HISTORY = 50
 INTEGRATION_CONFIG_FILE = "integration_config.json"
 INTEGRATION_LOG_FILE = "integration_events.jsonl"
 INTEGRATION_PENDING_FILE = "integration_pending.jsonl"
+LAP_CSV_FIELDNAMES = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp']
 integration_config = {
     "enabled": False,
     "dry_run": True,
@@ -303,6 +304,7 @@ def read_leaderboard_entries(limit=10):
                             'lap_time': lap_time,
                             'formatted_lap_time': format_lap_time(lap_time),
                             'email': str(row.get('email', '')),
+                            'phone': str(row.get('phone', '')),
                             'timestamp': str(row.get('timestamp', ''))
                         }
                 except (ValueError, TypeError):
@@ -890,6 +892,7 @@ class NetworkThread(QThread):
                                     'driver_name': driver_name,
                                     'lap_time': lap_time,
                                     'email': str(row.get('email', '')),
+                                    'phone': str(row.get('phone', '')),
                                     'timestamp': str(row.get('timestamp', ''))
                                 }
                         except ValueError as e:
@@ -1897,7 +1900,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         file_exists = os.path.exists(csv_file)
 
         with open(csv_file, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=['simulator_id', 'driver_name', 'lap_time', 'email', 'timestamp'])
+            writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDNAMES)
             if not file_exists:
                 writer.writeheader()
             writer.writerow({
@@ -1905,6 +1908,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 'driver_name': clean_data['driver_name'],
                 'lap_time': clean_data['lap_time'],
                 'email': clean_data['email'],
+                'phone': clean_data['phone'],
                 'timestamp': clean_data['timestamp']
             })
 
@@ -2284,7 +2288,7 @@ class ControlWindow(QMainWindow):
         if not os.path.exists(csv_file):
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['simulator_id', 'driver_name', 'lap_time', 'email', 'timestamp'])
+                writer.writerow(LAP_CSV_FIELDNAMES)
     
     def load_config(self):
         """Load configuration from file, keeping defaults if file doesn't exist"""
@@ -2951,7 +2955,7 @@ class ControlWindow(QMainWindow):
             # Clear the leaderboard
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['simulator_id', 'driver_name', 'lap_time', 'email', 'timestamp'])
+                writer.writerow(LAP_CSV_FIELDNAMES)
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
@@ -2988,7 +2992,7 @@ class ControlWindow(QMainWindow):
             # Clear the CSV file (keep header)
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['simulator_id', 'driver_name', 'lap_time', 'email', 'timestamp'])
+                writer.writerow(LAP_CSV_FIELDNAMES)
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
