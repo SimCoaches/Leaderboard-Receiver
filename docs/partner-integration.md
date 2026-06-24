@@ -90,6 +90,29 @@ python scripts\generate_integration_credentials.py `
 
 `integration_config.json` is ignored by git and should stay local to the Receiver machine.
 
+For event installs, the Receiver installer can include the local `integration_config.json` so a new PC starts with the same previously shared API key and signing secret. The installer should not overwrite an existing installed `integration_config.json`.
+
+## In-Person Setup
+
+The Receiver app also has a `Partner` tab for event-day setup without editing files by hand.
+
+1. Open Receiver.
+2. Go to `Partner`.
+3. If the partner already built against previously shared credentials, paste those exact values into `API Key` and `Signing Secret`.
+4. Only click `Generate New Credentials` when intentionally rotating credentials and the partner is ready to update their software.
+5. Copy `API Key` and `Signing Secret` for the partner if they need to confirm what Receiver is using.
+6. Paste the partner's staging or production `Webhook URL`.
+7. Set `Enabled`.
+8. Set `Live Send` when the partner is ready to receive real HTTP test requests. Leave `Dry Run` on if we only want to confirm local config.
+9. Click `Save Partner Config`.
+10. Click `Send Test Webhook`.
+
+Expected results:
+
+- `Dry run confirmed`: Receiver built the signed event but did not send HTTP.
+- `Test delivered: ... HTTP 2xx`: the partner endpoint received and accepted the signed event.
+- `Test failed: ...`: check the webhook URL, network, API key, signing secret, or partner logs.
+
 ## Outbound Webhook Request
 
 Receiver sends an HTTP `POST` to `webhook_url`.

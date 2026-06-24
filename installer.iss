@@ -27,6 +27,7 @@ Source: "Client\dist\Lap Time Receiver.exe"; DestDir: "{app}"; Flags: ignorevers
 ; Configuration files
 Source: "Client\config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}"; DestName: "root_config.json"; Flags: ignoreversion
+Source: "integration_config.json"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist skipifsourcedoesntexist
 
 ; Data files
 Source: "lap_times.csv"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist

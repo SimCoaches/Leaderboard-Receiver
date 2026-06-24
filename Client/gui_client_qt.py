@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import uuid
 import mimetypes
+import secrets
 from datetime import datetime
 import requests
 import logging
@@ -3028,6 +3029,7 @@ class ControlWindow(QMainWindow):
         self.sim_refresh_timer.start(2000)
 
         tabs.addTab(general_tab, "General")
+        tabs.addTab(self.create_partner_integration_tab(), "Partner")
 
         # === APPEARANCE TAB ===
         appearance_tab = QWidget()
@@ -3189,6 +3191,250 @@ class ControlWindow(QMainWindow):
         """)
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
+
+    def create_partner_integration_tab(self):
+        """Create the in-person partner webhook setup panel."""
+        config = load_integration_config()
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+
+        description = QLabel(
+            "Generate credentials, paste the partner webhook URL, then send a signed test event."
+        )
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #cccccc; font-size: 12px;")
+        layout.addWidget(description)
+
+        def make_row(label_text, widget):
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            label = QLabel(label_text)
+            label.setFixedWidth(115)
+            row.addWidget(label)
+            row.addWidget(widget, 1)
+            return row
+
+        self.partner_webhook_url = QLineEdit(str(config.get('webhook_url', '')))
+        self.partner_webhook_url.setPlaceholderText("https://partner.example.com/webhooks/simcoaches/race-completed")
+        layout.addLayout(make_row("Webhook URL:", self.partner_webhook_url))
+
+        self.partner_demo_url = QLineEdit(str(config.get('demo_url', '')))
+        self.partner_demo_url.setPlaceholderText("Optional demo link included in Vincent's payload")
+        layout.addLayout(make_row("Demo URL:", self.partner_demo_url))
+
+        timeout_row = QHBoxLayout()
+        timeout_row.setSpacing(8)
+        timeout_label = QLabel("Timeout:")
+        timeout_label.setFixedWidth(115)
+        timeout_row.addWidget(timeout_label)
+        self.partner_timeout = QLineEdit(str(config.get('timeout_seconds', 5)))
+        self.partner_timeout.setMaxLength(2)
+        self.partner_timeout.setFixedWidth(50)
+        timeout_row.addWidget(self.partner_timeout)
+        timeout_row.addWidget(QLabel("seconds"))
+        timeout_row.addStretch()
+        layout.addLayout(timeout_row)
+
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(8)
+        mode_label = QLabel("Mode:")
+        mode_label.setFixedWidth(115)
+        mode_row.addWidget(mode_label)
+
+        self.partner_enabled_toggle = QPushButton()
+        self.partner_enabled_toggle.setCheckable(True)
+        self.partner_enabled_toggle.setChecked(bool(config.get('enabled')))
+        self.partner_enabled_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
+        mode_row.addWidget(self.partner_enabled_toggle)
+
+        self.partner_live_toggle = QPushButton()
+        self.partner_live_toggle.setCheckable(True)
+        self.partner_live_toggle.setChecked(not bool(config.get('dry_run', True)))
+        self.partner_live_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
+        mode_row.addWidget(self.partner_live_toggle)
+        mode_row.addStretch()
+        layout.addLayout(mode_row)
+        self.update_partner_toggle_labels()
+
+        credential_header = QLabel("Credentials")
+        credential_header.setStyleSheet("font-weight: bold; color: #007acc; margin-top: 4px;")
+        layout.addWidget(credential_header)
+
+        self.partner_api_key = QLineEdit(str(config.get('api_key', '')))
+        self.partner_api_key.setPlaceholderText("Paste existing API key or generate a new one")
+        layout.addLayout(make_row("API Key:", self.partner_api_key))
+
+        self.partner_signing_secret = QLineEdit(str(config.get('signing_secret', '')))
+        self.partner_signing_secret.setPlaceholderText("Paste existing signing secret or generate a new one")
+        layout.addLayout(make_row("Signing Secret:", self.partner_signing_secret))
+
+        credential_buttons = QHBoxLayout()
+        credential_buttons.setSpacing(8)
+        generate_btn = QPushButton("Generate New Credentials")
+        generate_btn.clicked.connect(self.generate_partner_credentials)
+        credential_buttons.addWidget(generate_btn)
+
+        copy_api_btn = QPushButton("Copy API Key")
+        copy_api_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_api_key, "API key"))
+        credential_buttons.addWidget(copy_api_btn)
+
+        copy_secret_btn = QPushButton("Copy Signing Secret")
+        copy_secret_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_signing_secret, "signing secret"))
+        credential_buttons.addWidget(copy_secret_btn)
+        layout.addLayout(credential_buttons)
+
+        action_row = QHBoxLayout()
+        action_row.setSpacing(8)
+        save_btn = QPushButton("Save Partner Config")
+        save_btn.clicked.connect(lambda: self.save_partner_integration_config("Partner config saved."))
+        action_row.addWidget(save_btn)
+
+        test_btn = QPushButton("Send Test Webhook")
+        test_btn.setToolTip("Sends a signed race.completed test event to the configured webhook URL when enabled and Live Send is selected")
+        test_btn.clicked.connect(self.send_partner_test_webhook)
+        action_row.addWidget(test_btn)
+        layout.addLayout(action_row)
+
+        self.partner_status_label = QLabel("")
+        self.partner_status_label.setWordWrap(True)
+        self.partner_status_label.setStyleSheet("""
+            QLabel {
+                background-color: #252526;
+                color: #cccccc;
+                padding: 10px;
+                border: 1px solid #3c3c3c;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+        """)
+        layout.addWidget(self.partner_status_label)
+        self.update_partner_status_summary()
+
+        layout.addStretch()
+        return tab
+
+    def update_partner_toggle_labels(self):
+        if hasattr(self, 'partner_enabled_toggle'):
+            enabled = self.partner_enabled_toggle.isChecked()
+            self.partner_enabled_toggle.setText("Enabled" if enabled else "Disabled")
+            self.partner_enabled_toggle.setStyleSheet(
+                "background-color: #4ec9b0; color: #1e1e1e; font-weight: bold;"
+                if enabled else
+                "background-color: #3c3c3c; color: #ffffff;"
+            )
+
+        if hasattr(self, 'partner_live_toggle'):
+            live = self.partner_live_toggle.isChecked()
+            self.partner_live_toggle.setText("Live Send" if live else "Dry Run")
+            self.partner_live_toggle.setStyleSheet(
+                "background-color: #f48771; color: #1e1e1e; font-weight: bold;"
+                if live else
+                "background-color: #3c3c3c; color: #ffffff;"
+            )
+
+    def update_partner_status_summary(self, extra_message=""):
+        if not hasattr(self, 'partner_status_label'):
+            return
+
+        config = load_integration_config()
+        parts = []
+        parts.append("Integration: enabled" if config.get('enabled') else "Integration: disabled")
+        parts.append("Mode: live send" if not config.get('dry_run', True) else "Mode: dry run")
+        parts.append("Webhook URL: set" if config.get('webhook_url') else "Webhook URL: missing")
+        parts.append("API key: set" if config.get('api_key') else "API key: missing")
+        parts.append("Signing secret: set" if config.get('signing_secret') else "Signing secret: missing")
+
+        message = " | ".join(parts)
+        if extra_message:
+            message = f"{extra_message}\n{message}"
+        self.partner_status_label.setText(message)
+
+    def save_partner_integration_config(self, status_message=""):
+        try:
+            timeout_seconds = int(self.partner_timeout.text().strip() or "5")
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Timeout", "Timeout must be a number.")
+            return False
+
+        timeout_seconds = max(1, min(timeout_seconds, 30))
+        self.partner_timeout.setText(str(timeout_seconds))
+
+        integration_config.update({
+            "enabled": bool(self.partner_enabled_toggle.isChecked()),
+            "dry_run": not bool(self.partner_live_toggle.isChecked()),
+            "webhook_url": self.partner_webhook_url.text().strip(),
+            "api_key": self.partner_api_key.text().strip(),
+            "signing_secret": self.partner_signing_secret.text().strip(),
+            "timeout_seconds": timeout_seconds,
+            "demo_url": self.partner_demo_url.text().strip(),
+        })
+        save_integration_config()
+        self.update_partner_status_summary(status_message)
+        return True
+
+    def generate_partner_credentials(self):
+        if self.partner_api_key.text().strip() or self.partner_signing_secret.text().strip():
+            reply = QMessageBox.question(
+                self,
+                "Replace Credentials?",
+                "Generate a new API key and signing secret? Do this only if the partner is ready to update their software.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        self.partner_api_key.setText(secrets.token_urlsafe(32))
+        self.partner_signing_secret.setText(secrets.token_urlsafe(32))
+        self.save_partner_integration_config("Generated and saved new partner credentials.")
+
+    def copy_partner_value(self, field, label):
+        value = field.text().strip()
+        if not value:
+            self.statusBar().showMessage(f"No {label} to copy.", 4000)
+            return
+        QApplication.clipboard().setText(value)
+        self.statusBar().showMessage(f"Copied {label}.", 4000)
+
+    def send_partner_test_webhook(self):
+        if not self.save_partner_integration_config():
+            return
+
+        config = load_integration_config()
+        if not config.get('api_key') or not config.get('signing_secret'):
+            self.update_partner_status_summary("Test not sent: generate credentials first.")
+            return
+
+        if not config.get('webhook_url'):
+            self.update_partner_status_summary("Test not sent: paste Vincent's webhook URL first.")
+            return
+
+        sample = {
+            'simulator_id': '1',
+            'driver_name': 'Vincent Test Racer',
+            'lap_time': 83.456,
+            'email': 'vincent.test@example.com',
+            'phone': '+17025550123',
+            'session_id': f"in-person-test-{uuid.uuid4()}",
+            'timestamp': datetime.now().isoformat()
+        }
+        event = build_race_completed_event(sample)
+        record = attempt_integration_delivery(event)
+        append_integration_log({**record, "event": event})
+
+        if record.get('error') == 'disabled':
+            self.update_partner_status_summary("Test not sent: Integration is disabled. Turn it on and save.")
+        elif record.get('error') == 'dry_run':
+            self.update_partner_status_summary("Dry run confirmed: signed test event was built but no HTTP request was sent.")
+        elif record.get('delivered'):
+            self.update_partner_status_summary(f"Test delivered: Vincent's endpoint returned HTTP {record.get('status_code')}.")
+        else:
+            status = record.get('status_code')
+            error = record.get('error') or "unknown error"
+            prefix = f"HTTP {status}" if status else "connection failed"
+            self.update_partner_status_summary(f"Test failed: {prefix}. {error}")
     
     def create_leaderboard_window(self):
         if self.leaderboard_window is None:
