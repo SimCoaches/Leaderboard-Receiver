@@ -6,6 +6,7 @@ import shutil
 import hashlib
 import hmac
 import uuid
+import mimetypes
 from datetime import datetime
 import requests
 import logging
@@ -42,6 +43,22 @@ INTEGRATION_CONFIG_FILE = "integration_config.json"
 INTEGRATION_LOG_FILE = "integration_events.jsonl"
 INTEGRATION_PENDING_FILE = "integration_pending.jsonl"
 LAP_CSV_FIELDNAMES = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp']
+DISPLAY_CONFIG_FILE = "config.json"
+DISPLAY_CONFIG_DEFAULTS = {
+    'opacity': 220,
+    'header_font_size': 30,
+    'entry_font_size': 30,
+    'other_font_size': 30,
+    'background_image': '',
+    'fill_screen': False,
+    'panel_width': 1200,
+    'horizontal_offset_h': 0,
+    'vertical_offset_h': 0,
+    'horizontal_offset_v': 0,
+    'vertical_offset_v': 0,
+    'orientation': 'horizontal',
+    'vertical_row_height': 123
+}
 integration_config = {
     "enabled": False,
     "dry_run": True,
@@ -315,6 +332,25 @@ def read_leaderboard_entries(limit=10):
 
     return sorted(lap_times.values(), key=lambda x: x['lap_time'])[:limit]
 
+def load_display_config_for_mirror():
+    """Load non-secret display settings used by the browser leaderboard mirror."""
+    config = DISPLAY_CONFIG_DEFAULTS.copy()
+    if os.path.exists(DISPLAY_CONFIG_FILE):
+        try:
+            with open(DISPLAY_CONFIG_FILE, 'r') as f:
+                loaded = json.load(f)
+            for key in DISPLAY_CONFIG_DEFAULTS:
+                if key in loaded:
+                    config[key] = loaded[key]
+        except Exception as e:
+            logger.warning(f"Error loading mirror display config: {e}")
+
+    background_image = str(config.get('background_image') or '')
+    has_background = bool(background_image and os.path.isfile(background_image))
+    config['has_background'] = has_background
+    config['background_version'] = int(os.path.getmtime(background_image)) if has_background else 0
+    return config
+
 LEADERBOARD_HTML_CONTENT = r"""
 <!DOCTYPE html>
 <html>
@@ -322,90 +358,282 @@ LEADERBOARD_HTML_CONTENT = r"""
     <title>Sim Coaches Leaderboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        * { box-sizing: border-box; }
+        :root {
+            --board-width: 1200px;
+            --board-height: 660px;
+            --row-height: 60px;
+            --offset-x: 0px;
+            --offset-y: 0px;
+            --header-opacity: 220;
+            --entry-opacity: 220;
+            --header-font-size: 30px;
+            --entry-font-size: 30px;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        html,
         body {
             margin: 0;
-            min-height: 100vh;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background: #050505;
             color: #ffffff;
             font-family: Arial, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px;
         }
-        main { width: min(1100px, 100%); }
-        h1 {
-            margin: 0 0 24px;
-            font-size: 42px;
+        .viewport {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            background: #050505;
+        }
+        .stage {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1920px;
+            height: 1080px;
+            transform: translate(-50%, -50%);
+            transform-origin: center center;
+            overflow: hidden;
+            background-color: #050505;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+        }
+        .board {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: var(--board-width);
+            height: var(--board-height);
+            transform: translate(-50%, -50%) translate(var(--offset-x), var(--offset-y));
+            overflow: hidden;
+        }
+        .header,
+        .row {
+            display: grid;
+            grid-template-columns: 100px 1fr 180px;
+            column-gap: 20px;
+            align-items: center;
+            padding: 0 30px;
+        }
+        .header {
+            height: var(--row-height);
+            background-color: rgba(50, 50, 50, calc(var(--header-opacity) / 255));
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            color: #ffffff;
+            font-size: var(--header-font-size);
             font-weight: 800;
             letter-spacing: 0;
         }
+        .entries {
+            height: calc(var(--board-height) - var(--row-height));
+            overflow: hidden;
+            background-color: rgba(40, 40, 40, calc(var(--entry-opacity) / 255));
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
         .row {
-            display: grid;
-            grid-template-columns: 96px 1fr 220px;
-            gap: 18px;
+            height: var(--row-height);
+            font-size: var(--entry-font-size);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .position {
+            color: #b0b0b0;
+            font-weight: 400;
+            text-align: center;
+            border-left: 4px solid transparent;
+            padding-left: 12px;
+        }
+        .driver {
+            color: #ffffff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .time {
+            color: #b0b0b0;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+        }
+        .pos-1,
+        .pos-2,
+        .pos-3 {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        .pos-1 .position,
+        .pos-1 .time {
+            color: #d4af37;
+        }
+        .pos-1 .position {
+            border-left-color: #d4af37;
+        }
+        .pos-2 .position,
+        .pos-2 .time {
+            color: #a8a9ad;
+        }
+        .pos-2 .position {
+            border-left-color: #a8a9ad;
+        }
+        .pos-3 .position,
+        .pos-3 .time {
+            color: #cd7f32;
+        }
+        .pos-3 .position {
+            border-left-color: #cd7f32;
+        }
+        .empty {
+            height: var(--row-height);
+            display: flex;
             align-items: center;
-            min-height: 72px;
-            border-bottom: 1px solid rgba(255,255,255,0.14);
-            font-size: 30px;
+            justify-content: center;
+            color: #b0b0b0;
+            font-size: var(--entry-font-size);
         }
-        .header {
-            min-height: 46px;
-            color: #9ca3af;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0;
-        }
-        .position { color: #d4af37; font-weight: 800; text-align: center; }
-        .driver { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .time { color: #d4af37; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
-        .empty { color: #9ca3af; font-size: 24px; padding: 48px 0; }
-        @media (max-width: 700px) {
-            body { padding: 18px; }
-            h1 { font-size: 30px; }
-            .row { grid-template-columns: 56px 1fr 130px; gap: 10px; min-height: 58px; font-size: 20px; }
-            .header { font-size: 12px; }
+        .offline .empty {
+            color: #f48771;
         }
     </style>
 </head>
 <body>
-    <main>
-        <h1>Leaderboard</h1>
-        <section class="row header">
-            <div>Pos</div><div>Driver</div><div style="text-align:right;">Time</div>
-        </section>
-        <section id="entries"><div class="empty">Waiting for lap times...</div></section>
-    </main>
+    <div class="viewport">
+        <main class="stage" id="stage">
+            <section class="board" id="board">
+                <div class="header">
+                    <div>Position</div>
+                    <div>Driver</div>
+                    <div style="text-align:center;">Time</div>
+                </div>
+                <div class="entries" id="entries">
+                    <div class="empty">Waiting for lap times...</div>
+                </div>
+            </section>
+        </main>
+    </div>
     <script>
-        async function refreshLeaderboard() {
+        const stage = document.getElementById('stage');
+        const entriesContainer = document.getElementById('entries');
+        let displayConfig = {};
+
+        function asNumber(value, fallback) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+
+        function applyScale() {
+            const vertical = displayConfig.orientation === 'vertical';
+            const baseWidth = vertical ? 1080 : 1920;
+            const baseHeight = vertical ? 1920 : 1080;
+            const scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
+            stage.style.width = `${baseWidth}px`;
+            stage.style.height = `${baseHeight}px`;
+            stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        }
+
+        function applyConfig(config) {
+            displayConfig = config || {};
+            const vertical = displayConfig.orientation === 'vertical';
+            const rowHeight = vertical ? asNumber(displayConfig.vertical_row_height, 123) : 60;
+            const boardWidth = vertical ? 864 : asNumber(displayConfig.panel_width, 1200);
+            const boardHeight = vertical ? rowHeight * 11 : 660;
+            const offsetX = vertical
+                ? asNumber(displayConfig.horizontal_offset_v, 0)
+                : asNumber(displayConfig.horizontal_offset_h, 0);
+            const offsetY = vertical
+                ? asNumber(displayConfig.vertical_offset_v, 0)
+                : asNumber(displayConfig.vertical_offset_h, 0);
+            const opacity = Math.max(0, Math.min(255, asNumber(displayConfig.opacity, 220)));
+
+            document.documentElement.style.setProperty('--board-width', `${boardWidth}px`);
+            document.documentElement.style.setProperty('--board-height', `${boardHeight}px`);
+            document.documentElement.style.setProperty('--row-height', `${rowHeight}px`);
+            document.documentElement.style.setProperty('--offset-x', `${offsetX}px`);
+            document.documentElement.style.setProperty('--offset-y', `${offsetY}px`);
+            document.documentElement.style.setProperty('--header-opacity', opacity);
+            document.documentElement.style.setProperty('--entry-opacity', opacity);
+            document.documentElement.style.setProperty('--header-font-size', `${asNumber(displayConfig.header_font_size, 30)}px`);
+            document.documentElement.style.setProperty('--entry-font-size', `${asNumber(displayConfig.entry_font_size || displayConfig.other_font_size, 30)}px`);
+
+            if (displayConfig.has_background) {
+                stage.style.backgroundImage = `url('/leaderboard-background?v=${displayConfig.background_version || 0}')`;
+                stage.style.backgroundSize = displayConfig.fill_screen ? '100% 100%' : 'cover';
+            } else {
+                stage.style.backgroundImage = 'none';
+            }
+
+            applyScale();
+        }
+
+        async function refreshConfig() {
             try {
-                const response = await fetch('/api/leaderboard');
+                const response = await fetch('/api/leaderboard/display-config', { cache: 'no-store' });
                 const data = await response.json();
-                const entries = data.entries || [];
-                const container = document.getElementById('entries');
-                if (!entries.length) {
-                    container.innerHTML = '<div class="empty">Waiting for lap times...</div>';
-                    return;
-                }
-                container.innerHTML = entries.map((entry, index) => `
-                    <div class="row">
-                        <div class="position">${index + 1}</div>
-                        <div class="driver">${escapeHtml(entry.driver_name)}</div>
-                        <div class="time">${escapeHtml(entry.formatted_lap_time)}</div>
-                    </div>
-                `).join('');
+                applyConfig(data.config || {});
             } catch (error) {
                 console.error(error);
+                applyConfig(displayConfig);
             }
         }
-        function escapeHtml(value) {
-            const div = document.createElement('div');
-            div.textContent = value || '';
-            return div.innerHTML;
+
+        async function refreshLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard', { cache: 'no-store' });
+                const data = await response.json();
+                const entries = data.entries || [];
+                document.body.classList.remove('offline');
+                if (!entries.length) {
+                    entriesContainer.replaceChildren(makeEmpty('Waiting for lap times...'));
+                    return;
+                }
+                entriesContainer.replaceChildren(...entries.slice(0, 10).map(makeRow));
+            } catch (error) {
+                console.error(error);
+                document.body.classList.add('offline');
+                entriesContainer.replaceChildren(makeEmpty('Mirror connection lost'));
+            }
         }
-        refreshLeaderboard();
-        setInterval(refreshLeaderboard, 2000);
+
+        function makeRow(entry, index) {
+            const row = document.createElement('div');
+            row.className = `row pos-${index + 1}`;
+
+            const position = document.createElement('div');
+            position.className = 'position';
+            position.textContent = String(index + 1);
+
+            const driver = document.createElement('div');
+            driver.className = 'driver';
+            driver.textContent = entry.driver_name || '';
+
+            const time = document.createElement('div');
+            time.className = 'time';
+            time.textContent = entry.formatted_lap_time || formatTime(entry.lap_time);
+
+            row.append(position, driver, time);
+            return row;
+        }
+
+        function makeEmpty(message) {
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = message;
+            return empty;
+        }
+
+        function formatTime(seconds) {
+            const value = asNumber(seconds, 0);
+            const minutes = Math.floor(value / 60).toString().padStart(2, '0');
+            const remainder = (value % 60).toFixed(3).padStart(6, '0');
+            return `${minutes}:${remainder}`;
+        }
+
+        window.addEventListener('resize', applyScale);
+        refreshConfig().then(refreshLeaderboard);
+        setInterval(refreshConfig, 5000);
+        setInterval(refreshLeaderboard, 1000);
     </script>
 </body>
 </html>
@@ -2139,7 +2367,13 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         elif path == '/api/leaderboard':
             self.handle_get_leaderboard()
             return
-        elif path == '/leaderboard':
+        elif path == '/api/leaderboard/display-config':
+            self.handle_get_leaderboard_display_config()
+            return
+        elif path == '/leaderboard-background':
+            self.handle_leaderboard_background()
+            return
+        elif path in ('/', '/leaderboard'):
             self.handle_leaderboard_page()
             return
         else:
@@ -2162,6 +2396,13 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'entries': read_leaderboard_entries()
         })
 
+    def handle_get_leaderboard_display_config(self):
+        """Return display settings needed by the browser mirror."""
+        self.send_json_response({
+            'success': True,
+            'config': load_display_config_for_mirror()
+        })
+
     def handle_leaderboard_page(self):
         """Serve a browser-friendly mirror of the local leaderboard."""
         self.send_response(200)
@@ -2169,6 +2410,33 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(LEADERBOARD_HTML_CONTENT.encode('utf-8'))
+
+    def handle_leaderboard_background(self):
+        """Serve the configured local background image to browser mirror clients."""
+        config = load_display_config_for_mirror()
+        image_path = str(config.get('background_image') or '')
+        if not config.get('has_background') or not os.path.isfile(image_path):
+            self.send_response(404)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            return
+
+        content_type = mimetypes.guess_type(image_path)[0] or 'application/octet-stream'
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            self.send_response(200)
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', str(len(image_data)))
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(image_data)
+        except Exception as e:
+            logger.warning(f"Error serving leaderboard background: {e}")
+            self.send_response(500)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
 
     def handle_get_integration_config(self):
         """Return non-secret partner integration status."""
@@ -2477,6 +2745,32 @@ class ControlWindow(QMainWindow):
         port_row.addWidget(self.server_port_display)
         port_row.addStretch()
         server_card_layout.addLayout(port_row)
+
+        mirror_label = QLabel("Mirror URL:")
+        mirror_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
+        server_card_layout.addWidget(mirror_label)
+
+        self.mirror_url_display = QLabel(self.get_mirror_url())
+        self.mirror_url_display.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.mirror_url_display.setWordWrap(True)
+        self.mirror_url_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
+        server_card_layout.addWidget(self.mirror_url_display)
+
+        copy_mirror_btn = QPushButton("Copy Mirror URL")
+        copy_mirror_btn.setToolTip("Copy the browser mirror URL for another computer on the same network")
+        copy_mirror_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3c3c3c;
+                color: #ffffff;
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+        """)
+        copy_mirror_btn.clicked.connect(self.copy_mirror_url)
+        server_card_layout.addWidget(copy_mirror_btn)
 
         server_card_layout.addStretch()
 
@@ -3174,6 +3468,7 @@ class ControlWindow(QMainWindow):
         
         # Update the server URL display in the UI
         self.server_url_entry.setText(self.config['server_url'])
+        self.update_mirror_url_display()
         
         self.statusBar().showMessage("Settings saved successfully")
     
@@ -3184,6 +3479,20 @@ class ControlWindow(QMainWindow):
         self.network_thread.leaderboard_updated.connect(self.update_leaderboard)
         self.network_thread.server_status_updated.connect(self.statusBar().showMessage)
         self.network_thread.start()
+
+    def get_mirror_url(self):
+        """Return the browser URL for mirroring the leaderboard from another computer."""
+        base_url = self.config.get('server_url') or f"http://{get_local_ip()}:{self.config.get('server_port', 5000)}"
+        return base_url.rstrip('/') + '/leaderboard'
+
+    def update_mirror_url_display(self):
+        if hasattr(self, 'mirror_url_display'):
+            self.mirror_url_display.setText(self.get_mirror_url())
+
+    def copy_mirror_url(self):
+        url = self.get_mirror_url()
+        QApplication.clipboard().setText(url)
+        self.statusBar().showMessage(f"Copied mirror URL: {url}", 5000)
 
     def update_simulators_display(self):
         """Update the connected simulators display"""
@@ -3316,6 +3625,7 @@ class ControlWindow(QMainWindow):
             self.server_status_label.setStyleSheet("color: #888888; font-size: 12px; background: transparent; border: none;")
             self.server_status_dot.setStyleSheet("color: #888888; font-size: 10px; background: transparent; border: none;")
             self.discovery_status_label.setText("Discovery: Inactive")
+            self.update_mirror_url_display()
             self.server_toggle_btn.setText("Start Server")
             self.server_toggle_btn.setStyleSheet("""
                 QPushButton {
@@ -3350,6 +3660,7 @@ class ControlWindow(QMainWindow):
                 self.config['server_port'] = port  # Save port to config
                 self.server_url_entry.setText(self.config['server_url'])
                 self.server_port_display.setText(str(port))
+                self.update_mirror_url_display()
 
                 # Save config to persist port change
                 with open('config.json', 'w') as f:
@@ -3405,6 +3716,7 @@ class ControlWindow(QMainWindow):
             local_ip = get_local_ip()
             self.config['server_url'] = f'http://{local_ip}:{port}'
             self.server_url_entry.setText(self.config['server_url'])
+            self.update_mirror_url_display()
 
             self.server_status_label.setText("Running")
             self.server_status_label.setStyleSheet("color: #4ec9b0; font-size: 12px; background: transparent; border: none;")
