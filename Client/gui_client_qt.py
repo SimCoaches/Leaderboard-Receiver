@@ -2699,8 +2699,8 @@ class ControlWindow(QMainWindow):
     
     def setup_ui(self):
         self.setWindowTitle("Leaderboard Control")
-        self.setGeometry(100, 100, 720, 700)
-        self.setFixedSize(720, 700)
+        self.setGeometry(100, 100, 820, 780)
+        self.setMinimumSize(760, 720)
 
         # Set window icon
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.png')
@@ -3060,7 +3060,8 @@ class ControlWindow(QMainWindow):
 
         # Tabs for settings
         tabs = QTabWidget()
-        layout.addWidget(tabs)
+        tabs.setMinimumHeight(330)
+        layout.addWidget(tabs, 1)
 
         # === GENERAL TAB ===
         general_tab = QWidget()
@@ -3298,9 +3299,18 @@ class ControlWindow(QMainWindow):
         """Create the in-person partner webhook setup panel."""
         config = load_integration_config()
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(10)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(14, 14, 14, 14)
 
         description = QLabel(
             "Generate credentials, paste the partner webhook URL, then send a signed test event."
@@ -3313,8 +3323,9 @@ class ControlWindow(QMainWindow):
             row = QHBoxLayout()
             row.setSpacing(8)
             label = QLabel(label_text)
-            label.setFixedWidth(115)
+            label.setFixedWidth(130)
             row.addWidget(label)
+            widget.setMinimumHeight(34)
             row.addWidget(widget, 1)
             return row
 
@@ -3329,11 +3340,11 @@ class ControlWindow(QMainWindow):
         timeout_row = QHBoxLayout()
         timeout_row.setSpacing(8)
         timeout_label = QLabel("Timeout:")
-        timeout_label.setFixedWidth(115)
+        timeout_label.setFixedWidth(130)
         timeout_row.addWidget(timeout_label)
         self.partner_timeout = QLineEdit(str(config.get('timeout_seconds', 5)))
         self.partner_timeout.setMaxLength(2)
-        self.partner_timeout.setFixedWidth(50)
+        self.partner_timeout.setFixedSize(64, 34)
         timeout_row.addWidget(self.partner_timeout)
         timeout_row.addWidget(QLabel("seconds"))
         timeout_row.addStretch()
@@ -3342,19 +3353,21 @@ class ControlWindow(QMainWindow):
         mode_row = QHBoxLayout()
         mode_row.setSpacing(8)
         mode_label = QLabel("Mode:")
-        mode_label.setFixedWidth(115)
+        mode_label.setFixedWidth(130)
         mode_row.addWidget(mode_label)
 
         self.partner_enabled_toggle = QPushButton()
         self.partner_enabled_toggle.setCheckable(True)
         self.partner_enabled_toggle.setChecked(bool(config.get('enabled')))
         self.partner_enabled_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
+        self.partner_enabled_toggle.setMinimumSize(120, 38)
         mode_row.addWidget(self.partner_enabled_toggle)
 
         self.partner_live_toggle = QPushButton()
         self.partner_live_toggle.setCheckable(True)
         self.partner_live_toggle.setChecked(not bool(config.get('dry_run', True)))
         self.partner_live_toggle.clicked.connect(lambda _checked: self.update_partner_toggle_labels())
+        self.partner_live_toggle.setMinimumSize(120, 38)
         mode_row.addWidget(self.partner_live_toggle)
         mode_row.addStretch()
         layout.addLayout(mode_row)
@@ -3375,25 +3388,30 @@ class ControlWindow(QMainWindow):
         credential_buttons = QHBoxLayout()
         credential_buttons.setSpacing(8)
         generate_btn = QPushButton("Generate New Credentials")
+        generate_btn.setMinimumHeight(38)
         generate_btn.clicked.connect(self.generate_partner_credentials)
-        credential_buttons.addWidget(generate_btn)
+        credential_buttons.addWidget(generate_btn, 2)
 
         copy_api_btn = QPushButton("Copy API Key")
+        copy_api_btn.setMinimumHeight(38)
         copy_api_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_api_key, "API key"))
-        credential_buttons.addWidget(copy_api_btn)
+        credential_buttons.addWidget(copy_api_btn, 1)
 
         copy_secret_btn = QPushButton("Copy Signing Secret")
+        copy_secret_btn.setMinimumHeight(38)
         copy_secret_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_signing_secret, "signing secret"))
-        credential_buttons.addWidget(copy_secret_btn)
+        credential_buttons.addWidget(copy_secret_btn, 1)
         layout.addLayout(credential_buttons)
 
         action_row = QHBoxLayout()
         action_row.setSpacing(8)
         save_btn = QPushButton("Save Partner Config")
+        save_btn.setMinimumHeight(40)
         save_btn.clicked.connect(lambda: self.save_partner_integration_config("Partner config saved."))
         action_row.addWidget(save_btn)
 
         test_btn = QPushButton("Send Test Webhook")
+        test_btn.setMinimumHeight(40)
         test_btn.setToolTip("Sends a signed race.completed test event to the configured webhook URL when enabled and Live Send is selected")
         test_btn.clicked.connect(self.send_partner_test_webhook)
         action_row.addWidget(test_btn)
@@ -3401,6 +3419,8 @@ class ControlWindow(QMainWindow):
 
         self.partner_status_label = QLabel("")
         self.partner_status_label.setWordWrap(True)
+        self.partner_status_label.setMinimumHeight(108)
+        self.partner_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.partner_status_label.setStyleSheet("""
             QLabel {
                 background-color: #252526;
@@ -3415,6 +3435,8 @@ class ControlWindow(QMainWindow):
         self.update_partner_status_summary()
 
         layout.addStretch()
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
         return tab
 
     def update_partner_toggle_labels(self):
@@ -3448,9 +3470,9 @@ class ControlWindow(QMainWindow):
         parts.append("API key: set" if config.get('api_key') else "API key: missing")
         parts.append("Signing secret: set" if config.get('signing_secret') else "Signing secret: missing")
 
-        message = " | ".join(parts)
+        message = "\n".join(parts)
         if extra_message:
-            message = f"{extra_message}\n{message}"
+            message = f"{extra_message}\n\n{message}"
         self.partner_status_label.setText(message)
 
     def save_partner_integration_config(self, status_message=""):
