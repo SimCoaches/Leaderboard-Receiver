@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Sim Coaches Receiver can send a partner webhook after a racer completes a session.
+Sim Coaches Receiver can send a partner webhook after each accepted racer lap.
 
 The normal event flow is:
 
 ```text
-Sender sign-in -> Receiver session tracking -> best lap saved -> race.completed webhook -> partner system
+Sender sign-in -> Receiver session tracking -> accepted lap saved -> race.completed webhook -> partner system
 ```
 
 The webhook integration is intentionally separate from the working leaderboard display path:
@@ -37,11 +37,11 @@ Important: `webhook_url` is the partner's receiving endpoint. Sim Coaches posts 
 
 ## Event Timing
 
-For normal sessions, Receiver tracks the best lap during the active session and emits one `race.completed` event when the session ends.
+For normal sessions, Receiver emits one `race.completed` event for every accepted lap as soon as Receiver saves it.
 
-Legacy direct lap submissions with no explicit session lifecycle still emit one event per accepted lap. The event integration should use normal session start/end flow for production.
+All laps from the same racer session use the same `session_id`, so the partner can group the driver's laps and choose the best lap on their side.
 
-When Lead Gen is enabled in Sender, racer email and phone are required before a driver can start. Those fields are carried through registration, queue assignment, session start, lap submission, and the final `race.completed` webhook.
+When Lead Gen is enabled in Sender, racer email and phone are required before a driver can start. Those fields are carried through registration, queue assignment, session start, lap submission, and each `race.completed` webhook.
 
 ## Configuration
 
@@ -179,7 +179,7 @@ Sample: `samples/race.completed.sample.json`
 
 Notes:
 
-- `race_time_seconds` is the racer's best lap for the completed session.
+- `race_time_seconds` is the accepted lap time for this event.
 - `formatted_race_time` is the display-ready version of the same value.
 - `session_id` is stable for the driver's active session.
 - `event_id` is unique for the webhook event and should be used for idempotency.

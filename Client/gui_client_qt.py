@@ -2269,10 +2269,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 active_session['session_id'] = session_id
                 active_session['driver_name'] = driver_name
                 save_queue_data()
-        else:
-            # Legacy direct lap submissions have no explicit session lifecycle,
-            # so keep emitting a partner event per accepted lap.
-            emit_integration_event(build_race_completed_event(clean_data))
+
+        # Vincent's integration needs every accepted lap so their system can
+        # group by session_id and decide how to display or sort results.
+        emit_integration_event(build_race_completed_event(clean_data))
         self.send_response(200)
         self.end_headers()
 
@@ -2436,18 +2436,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         session = None
         if simulator_ip in queue_data['active_sessions']:
             session = queue_data['active_sessions'].pop(simulator_ip)
-
-        if session and session.get('best_lap_time') is not None:
-            event_data = {
-                'simulator_id': session.get('simulator_id', ''),
-                'driver_name': session.get('driver_name', ''),
-                'lap_time': session.get('best_lap_time'),
-                'email': session.get('email', ''),
-                'phone': session.get('phone', ''),
-                'session_id': session.get('session_id', ''),
-                'timestamp': session.get('best_lap_timestamp') or datetime.now().isoformat()
-            }
-            emit_integration_event(build_race_completed_event(event_data))
 
         # Add to session history
         if duration_seconds > 0:
