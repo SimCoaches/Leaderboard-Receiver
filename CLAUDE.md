@@ -28,7 +28,7 @@ This is a PyQt6 desktop application for sim racing leaderboards. The entire appl
 
 **ControlWindow** - Main control panel with tabbed UI for configuration, queue management, event export/import, and SMS settings.
 
-**LeaderboardWindow** - Full-screen leaderboard display showing top 10 drivers sorted by fastest lap. Supports horizontal/vertical orientations, position-based font sizing (1st, 2nd, 3rd get larger fonts), draggable positioning, and background images.
+**LeaderboardWindow** - Full-screen leaderboard display showing top 10 drivers sorted by fastest lap (3 columns: Position, Driver, Time). In distance ranking mode it shows 4 columns (Position, Driver, Distance, Time) and the top 13 drivers, with a styled podium block (larger gold/silver/bronze rows, divider) above positions 4-13. Supports horizontal/vertical orientations, position-based font sizing (1st, 2nd, 3rd get larger fonts), draggable positioning, and background images.
 
 **NetworkThread** - QThread that monitors `lap_times.csv` for changes and emits signals to update the leaderboard UI.
 
@@ -49,8 +49,8 @@ Simulator → HTTP POST (port 5000) → LapTimeHandler → lap_times.csv → Net
 
 ### Key Files
 
-- `lap_times.csv` - Leaderboard data (CSV with: simulator_id, driver_name, lap_time, email, timestamp)
-- `config.json` - User settings (display, server, theme configuration)
+- `lap_times.csv` - Leaderboard data (CSV with: simulator_id, driver_name, lap_time, email, phone, timestamp, distance_pct). `distance_pct` (0-100, default 100.0) is how far around the track a run got; older CSV layouts are migrated automatically.
+- `config.json` - User settings (display, server, theme configuration). Includes `ranking_mode`: `"lap_time"` (default, rank by fastest lap) or `"distance"` (sector challenge: rank by highest distance_pct, tie-broken by lap time; the display adds a Distance column showing the percentage and always shows the elapsed time in the Time column)
 - `queue.json` - Queue state (auto-created)
 - `sms_config.json` - SMS provider config (Textbelt or Twilio)
 

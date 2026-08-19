@@ -7,22 +7,35 @@ import hashlib
 import hmac
 import uuid
 import mimetypes
+import time
 from datetime import datetime
 import requests
 import logging
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 import socket
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QHBoxLayout, QLabel, QLineEdit, QPushButton, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QTabWidget, QFileDialog, QMessageBox, QGridLayout,
-                            QFrame, QScrollArea, QSizePolicy)
+                            QFrame, QScrollArea, QSizePolicy, QComboBox)
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QImage, QCursor, QIcon
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# ============================================
+# ENTERPRISE-GRADE INSTRUMENTATION
+# Request tracking and slow request detection
+# ============================================
+SLOW_REQUEST_THRESHOLD_MS = 2000
+active_requests = 0
+max_seen_requests = 0
+slow_request_count = 0
+last_slow_request_time = None
+last_slow_request_path = None
+request_lock = threading.Lock()
 
 # Track connected simulators globally
 connected_simulators = {}  # {simulator_id: {'ip': ip, 'last_seen': timestamp, 'driver': name}}
@@ -42,7 +55,7 @@ MAX_SESSION_HISTORY = 50
 INTEGRATION_CONFIG_FILE = "integration_config.json"
 INTEGRATION_LOG_FILE = "integration_events.jsonl"
 INTEGRATION_PENDING_FILE = "integration_pending.jsonl"
-LAP_CSV_FIELDNAMES = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp']
+LAP_CSV_FIELDS = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp', 'distance_pct']
 DISPLAY_CONFIG_FILE = "config.json"
 VINCENT_API_KEY = "Yu2Rq3YTY8p5bVYkwHonhYQoAZvCSYNWkLXZg5dhbh0"
 VINCENT_SIGNING_SECRET = "043AnoEa9p4teSUi27QU3781-g7agsP4jSBubDhvAzs"
@@ -768,6 +781,16 @@ sms_config = {
     "message_template": "Hi {name}! It's your turn to race at {simulator}. Head over now!"
 }
 
+def get_config_path():
+    """Get absolute path to config file - works from any working directory"""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # Running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, 'config.json')
+
 def load_sms_config():
     """Load SMS configuration from file"""
     global sms_config
@@ -903,9 +926,21 @@ def send_sms_twilio(phone_number, message):
         print(f"[SMS] Twilio error: {e}")
         return False
 
+# ============================================
+# ASYNC QUEUE PERSISTENCE
+# Non-blocking file I/O with debouncing
+# ============================================
+_save_scheduled = False
+_save_lock = threading.Lock()
+_queue_data_initialized = False
+
 def load_queue_data():
-    """Load queue data from JSON file"""
-    global queue_data
+    """Load queue data from JSON file - only called at startup"""
+    global queue_data, _queue_data_initialized
+    if _queue_data_initialized:
+        # Queue is already in memory, no need to reload from disk
+        return queue_data
+
     if os.path.exists(QUEUE_FILE):
         try:
             with open(QUEUE_FILE, 'r') as f:
@@ -918,19 +953,55 @@ def load_queue_data():
                     entry for entry in queue_data.get("queue", [])
                     if current_time - entry.get("joined_at", 0) < twelve_hours
                 ]
+            print(f"[Queue] Loaded {len(queue_data.get('queue', []))} queue entries from disk")
         except Exception as e:
             logger.warning(f"Error loading queue data: {e}")
+
+    _queue_data_initialized = True
     return queue_data
 
 def save_queue_data():
-    """Save queue data to JSON file"""
-    global queue_data
+    """Non-blocking save with debouncing - schedules async write"""
+    global queue_data, _save_scheduled
     queue_data["last_updated"] = int(datetime.now().timestamp())
-    try:
-        with open(QUEUE_FILE, 'w') as f:
-            json.dump(queue_data, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Error saving queue data: {e}")
+
+    with _save_lock:
+        if _save_scheduled:
+            # A save is already scheduled, it will pick up our changes
+            return
+
+        _save_scheduled = True
+
+    def do_async_save():
+        global _save_scheduled
+        # Brief delay to batch multiple rapid changes
+        time.sleep(0.3)
+
+        try:
+            # Take a snapshot of data to save
+            with _save_lock:
+                data_snapshot = json.dumps(queue_data, indent=2)
+
+            # Write to temp file first, then rename (atomic on most systems)
+            temp_file = QUEUE_FILE + '.tmp'
+            with open(temp_file, 'w') as f:
+                f.write(data_snapshot)
+
+            # Atomic rename
+            if os.path.exists(QUEUE_FILE):
+                os.replace(temp_file, QUEUE_FILE)
+            else:
+                os.rename(temp_file, QUEUE_FILE)
+
+        except Exception as e:
+            logger.warning(f"[Queue] Async save error: {e}")
+        finally:
+            with _save_lock:
+                _save_scheduled = False
+
+    # Start async save in background thread
+    save_thread = threading.Thread(target=do_async_save, daemon=True)
+    save_thread.start()
 
 def generate_queue_id():
     """Generate a short unique ID for queue entries"""
@@ -1018,6 +1089,13 @@ DISCOVERY_PORT = 5001  # UDP port for discovery broadcasts
 DISCOVERY_REQUEST = b"LEADERBOARD_DISCOVER"
 DISCOVERY_RESPONSE_PREFIX = "LEADERBOARD_SERVER:"
 
+# Peer discovery protocol constants (for receiver-to-receiver sync)
+PEER_DISCOVER_REQUEST = b"LEADERBOARD_PEER_DISCOVER"
+PEER_DISCOVER_RESPONSE_PREFIX = "LEADERBOARD_PEER:"
+
+# Global peer discovery instance (set by ControlWindow)
+peer_discovery = None
+
 
 class DiscoveryResponder(threading.Thread):
     """UDP Discovery Responder - allows simulators to find this receiver automatically.
@@ -1039,6 +1117,7 @@ class DiscoveryResponder(threading.Thread):
         self.socket = None
 
     def run(self):
+        global peer_discovery
         self.running = True
         try:
             # Create UDP socket
@@ -1062,9 +1141,10 @@ class DiscoveryResponder(threading.Thread):
             while self.running:
                 try:
                     data, addr = self.socket.recvfrom(1024)
+                    data_str = data.decode('utf-8', errors='ignore')
 
                     if data == DISCOVERY_REQUEST:
-                        # Get current IP and respond
+                        # Simulator discovery request
                         local_ip = get_local_ip()
                         response = f"{DISCOVERY_RESPONSE_PREFIX}{local_ip}:{self.http_port}"
                         self.socket.sendto(response.encode(), addr)
@@ -1080,6 +1160,43 @@ class DiscoveryResponder(threading.Thread):
                             'last_lap': None
                         }
                         print(f"[DISCOVERY] Simulator at {sim_ip} discovered and tracked")
+
+                    elif data_str.startswith(PEER_DISCOVER_REQUEST.decode()):
+                        # Peer receiver discovery request - another receiver is looking for us
+                        # Format: "LEADERBOARD_PEER_DISCOVER:port"
+                        local_ip = get_local_ip()
+                        peer_ip = addr[0]
+
+                        # Don't respond to ourselves
+                        if peer_ip != local_ip and peer_ip != "127.0.0.1":
+                            # Parse the sender's port from the request
+                            try:
+                                sender_port = int(data_str.split(':')[1])
+                            except (IndexError, ValueError):
+                                sender_port = 5000
+
+                            # Respond with our info
+                            response = f"{PEER_DISCOVER_RESPONSE_PREFIX}{local_ip}:{self.http_port}"
+                            self.socket.sendto(response.encode(), addr)
+                            print(f"[PEER] Responded to peer discovery from {peer_ip}:{sender_port}")
+
+                            # Add the sender as a peer if we have peer_discovery
+                            if peer_discovery:
+                                peer_discovery.add_peer(peer_ip, sender_port)
+
+                    elif data_str.startswith(PEER_DISCOVER_RESPONSE_PREFIX):
+                        # Response from another receiver - add them as a peer
+                        # Format: "LEADERBOARD_PEER:ip:port"
+                        try:
+                            parts = data_str[len(PEER_DISCOVER_RESPONSE_PREFIX):].split(':')
+                            peer_ip = parts[0]
+                            peer_port = int(parts[1])
+
+                            if peer_discovery:
+                                peer_discovery.add_peer(peer_ip, peer_port)
+                                print(f"[PEER] Received peer response: {peer_ip}:{peer_port}")
+                        except (IndexError, ValueError) as e:
+                            print(f"[PEER] Error parsing peer response: {e}")
 
                 except socket.timeout:
                     continue  # Normal timeout, just loop again
@@ -1106,6 +1223,296 @@ class DiscoveryResponder(threading.Thread):
     def update_port(self, new_port):
         """Update the HTTP port that we advertise"""
         self.http_port = new_port
+
+
+class PeerDiscovery(threading.Thread):
+    """Discovers other receiver instances on the network for peer-to-peer lap time sync.
+
+    This enables automatic synchronization between multiple receivers:
+    - Broadcasts UDP discovery requests to find other receivers
+    - Maintains a list of discovered peer receivers (IP + port)
+    - Provides methods to sync lap times to/from peers
+    - Handles receivers joining and leaving the network
+    """
+
+    def __init__(self, http_port, status_callback=None):
+        super().__init__(daemon=True)
+        self.http_port = http_port
+        self.status_callback = status_callback
+        self.running = False
+        self.socket = None
+        self.peers = {}  # {ip: {'port': port, 'last_seen': timestamp}}
+        self.lock = threading.Lock()
+        self.discovery_interval = 30  # Seconds between discovery broadcasts
+        self.peer_timeout = 120  # Remove peers not seen for this many seconds
+
+    def run(self):
+        self.running = True
+        last_discovery = 0
+
+        try:
+            # Create UDP socket for broadcasting
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            self.socket.settimeout(1.0)
+
+            print(f"[PEER] Peer discovery started")
+
+            while self.running:
+                current_time = datetime.now().timestamp()
+
+                # Periodic discovery broadcast
+                if current_time - last_discovery >= self.discovery_interval:
+                    self.broadcast_discovery()
+                    last_discovery = current_time
+
+                    # Clean up stale peers
+                    self._cleanup_stale_peers()
+
+                    # Update status callback
+                    if self.status_callback:
+                        peer_count = len(self.get_peers())
+                        self.status_callback(f"Peers: {peer_count} receiver{'s' if peer_count != 1 else ''}")
+
+                # Brief sleep to prevent busy loop
+                threading.Event().wait(1.0)
+
+        except Exception as e:
+            print(f"[PEER] Error in peer discovery: {e}")
+        finally:
+            if self.socket:
+                self.socket.close()
+
+    def broadcast_discovery(self):
+        """Broadcast a peer discovery request to find other receivers"""
+        try:
+            # Broadcast to the local network
+            local_ip = get_local_ip()
+
+            # Get broadcast address from local IP (assume /24 subnet)
+            ip_parts = local_ip.split('.')
+            broadcast_ip = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+
+            # Include our port in the request so peers know how to respond
+            message = f"{PEER_DISCOVER_REQUEST.decode()}:{self.http_port}".encode()
+
+            self.socket.sendto(message, (broadcast_ip, DISCOVERY_PORT))
+            print(f"[PEER] Broadcast discovery to {broadcast_ip}:{DISCOVERY_PORT}")
+
+        except Exception as e:
+            print(f"[PEER] Error broadcasting discovery: {e}")
+
+    def add_peer(self, ip, port):
+        """Add or update a discovered peer"""
+        # Don't add ourselves
+        local_ip = get_local_ip()
+        if ip == local_ip or ip == "127.0.0.1":
+            return
+
+        with self.lock:
+            is_new = ip not in self.peers
+            self.peers[ip] = {
+                'port': port,
+                'last_seen': datetime.now().timestamp()
+            }
+            if is_new:
+                print(f"[PEER] Discovered new peer: {ip}:{port}")
+
+    def get_peers(self):
+        """Get list of currently known peers as [(ip, port), ...]"""
+        with self.lock:
+            return [(ip, data['port']) for ip, data in self.peers.items()]
+
+    def _cleanup_stale_peers(self):
+        """Remove peers that haven't been seen recently"""
+        current_time = datetime.now().timestamp()
+        with self.lock:
+            stale = [ip for ip, data in self.peers.items()
+                    if current_time - data['last_seen'] > self.peer_timeout]
+            for ip in stale:
+                print(f"[PEER] Removing stale peer: {ip}")
+                del self.peers[ip]
+
+    def sync_lap_time_to_peers(self, lap_data):
+        """Send a lap time to all known peers (non-blocking)"""
+        peers = self.get_peers()
+        if not peers:
+            return
+
+        def send_to_peer(ip, port):
+            try:
+                url = f"http://{ip}:{port}/api/laptimes/sync"
+                response = requests.post(url, json=lap_data, timeout=2)
+                if response.status_code == 200:
+                    print(f"[PEER] Synced lap time to {ip}:{port}")
+                else:
+                    print(f"[PEER] Failed to sync to {ip}:{port}: {response.status_code}")
+            except Exception as e:
+                print(f"[PEER] Error syncing to {ip}:{port}: {e}")
+
+        # Send to all peers in parallel (non-blocking)
+        for ip, port in peers:
+            threading.Thread(target=send_to_peer, args=(ip, port), daemon=True).start()
+
+    def fetch_all_from_peers(self):
+        """Fetch all lap times from all known peers (for startup sync)"""
+        peers = self.get_peers()
+        all_lap_times = []
+
+        for ip, port in peers:
+            try:
+                url = f"http://{ip}:{port}/api/laptimes"
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    lap_times = data.get('lap_times', [])
+                    all_lap_times.extend(lap_times)
+                    print(f"[PEER] Fetched {len(lap_times)} lap times from {ip}:{port}")
+            except Exception as e:
+                print(f"[PEER] Error fetching from {ip}:{port}: {e}")
+
+        return all_lap_times
+
+    def initial_discovery(self):
+        """Perform initial discovery and sync (called on startup)"""
+        # Broadcast discovery immediately
+        self.broadcast_discovery()
+
+        # Wait a moment for responses
+        threading.Event().wait(2.0)
+
+        # Fetch and merge lap times from any discovered peers
+        peer_lap_times = self.fetch_all_from_peers()
+        if peer_lap_times:
+            merged_count = merge_peer_lap_times(peer_lap_times)
+            print(f"[PEER] Initial sync: merged {merged_count} lap times from peers")
+
+    def stop(self):
+        self.running = False
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+
+
+def parse_distance_pct(value):
+    """Coerce a distance percentage to a float in [0, 100]. Missing/invalid -> 100.0
+    so plain lap submissions (and rows from old CSVs/peers) count as full laps."""
+    try:
+        pct = float(value)
+    except (TypeError, ValueError):
+        return 100.0
+    return max(0.0, min(100.0, pct))
+
+
+def migrate_lap_times_csv(csv_file='lap_times.csv'):
+    """Migrate older lap CSV layouts to the current phone + distance schema."""
+    if not os.path.exists(csv_file):
+        return
+    try:
+        with open(csv_file, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            header = reader.fieldnames
+            if not header or header == LAP_CSV_FIELDS:
+                return
+            rows = list(reader)
+
+        with open(csv_file, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDS)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({
+                    'simulator_id': str(row.get('simulator_id', '1')),
+                    'driver_name': str(row.get('driver_name', '')),
+                    'lap_time': str(row.get('lap_time', '')),
+                    'email': str(row.get('email', '')),
+                    'phone': str(row.get('phone', '')),
+                    'timestamp': str(row.get('timestamp', '')),
+                    'distance_pct': str(parse_distance_pct(row.get('distance_pct')))
+                })
+        print(f"Migrated {csv_file} to the current lap schema ({len(rows)} rows)")
+    except Exception as e:
+        print(f"Error migrating {csv_file}: {e}")
+
+
+def merge_peer_lap_times(peer_lap_times):
+    """Merge lap times from peers into the local CSV, avoiding duplicates.
+
+    Duplicates are identified by: driver_name + lap_time + timestamp
+    Returns the number of new lap times added.
+    """
+    csv_file = 'lap_times.csv'
+    existing = set()
+
+    # Read existing lap times to build duplicate detection set
+    if os.path.exists(csv_file):
+        try:
+            with open(csv_file, 'r', newline='') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # Create unique key for deduplication
+                    key = (
+                        str(row.get('driver_name', '')),
+                        str(row.get('lap_time', '')),
+                        str(row.get('timestamp', ''))
+                    )
+                    existing.add(key)
+        except Exception as e:
+            print(f"[PEER] Error reading existing lap times: {e}")
+
+    # Filter out duplicates and add new lap times
+    new_count = 0
+    migrate_lap_times_csv(csv_file)
+    file_exists = os.path.exists(csv_file)
+
+    with open(csv_file, 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+
+        for lap in peer_lap_times:
+            key = (
+                str(lap.get('driver_name', '')),
+                str(lap.get('lap_time', '')),
+                str(lap.get('timestamp', ''))
+            )
+            if key not in existing:
+                writer.writerow({
+                    'simulator_id': str(lap.get('simulator_id', '1')),
+                    'driver_name': str(lap.get('driver_name', '')),
+                    'lap_time': str(lap.get('lap_time', '')),
+                    'email': str(lap.get('email', '')),
+                    'phone': str(lap.get('phone', '')),
+                    'timestamp': str(lap.get('timestamp', '')),
+                    'distance_pct': str(parse_distance_pct(lap.get('distance_pct')))
+                })
+                existing.add(key)
+                new_count += 1
+
+    return new_count
+
+
+def is_duplicate_lap_time(driver_name, lap_time, timestamp):
+    """Check if a lap time already exists in the CSV"""
+    csv_file = 'lap_times.csv'
+    if not os.path.exists(csv_file):
+        return False
+
+    try:
+        with open(csv_file, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if (str(row.get('driver_name', '')) == str(driver_name) and
+                    str(row.get('lap_time', '')) == str(lap_time) and
+                    str(row.get('timestamp', '')) == str(timestamp)):
+                    return True
+    except Exception as e:
+        print(f"[PEER] Error checking for duplicate: {e}")
+
+    return False
+
 
 # Reusable stylesheet constants
 CONTROL_BUTTON_STYLE = """
@@ -1209,18 +1616,21 @@ class NetworkThread(QThread):
             return True
             
         for i, (old_entry, new_entry) in enumerate(zip(self._last_data, new_data)):
-            # Check if position, driver or lap time changed
+            # Check if position, driver, lap time or distance changed
             if (old_entry.get('driver_name') != new_entry.get('driver_name') or
-                abs(old_entry.get('lap_time', 0) - new_entry.get('lap_time', 0)) > 0.001):
+                abs(old_entry.get('lap_time', 0) - new_entry.get('lap_time', 0)) > 0.001 or
+                abs(old_entry.get('distance_pct', 100.0) - new_entry.get('distance_pct', 100.0)) > 0.01):
                 return True
                 
         return False
     
     def read_lap_times(self):
-        """Read and sort lap times from CSV file, keeping only fastest lap per driver"""
-        lap_times = {}  # Dictionary to store fastest lap per driver
+        """Read and sort lap times from CSV file, keeping only the best run per driver"""
+        lap_times = {}  # Dictionary to store best run per driver
         csv_file = 'lap_times.csv'
-        
+        # Re-read each pass so a settings change takes effect without restarting the thread
+        ranking_mode = self.config.get('ranking_mode', 'lap_time')
+
         if os.path.exists(csv_file):
             try:
                 with open(csv_file, 'r', newline='') as f:
@@ -1229,16 +1639,28 @@ class NetworkThread(QThread):
                         try:
                             driver_name = str(row.get('driver_name', ''))
                             lap_time = float(row.get('lap_time', 0))
-                            
-                            # Only keep the fastest lap time for each driver
-                            if driver_name not in lap_times or lap_time < lap_times[driver_name]['lap_time']:
+                            distance_pct = parse_distance_pct(row.get('distance_pct'))
+
+                            best = lap_times.get(driver_name)
+                            if ranking_mode == 'distance':
+                                # Best run = furthest distance, tie-broken by fastest time
+                                is_better = (best is None or
+                                             distance_pct > best['distance_pct'] or
+                                             (distance_pct == best['distance_pct'] and
+                                              lap_time < best['lap_time']))
+                            else:
+                                # Only keep the fastest lap time for each driver
+                                is_better = best is None or lap_time < best['lap_time']
+
+                            if is_better:
                                 lap_times[driver_name] = {
                                     'simulator_id': str(row.get('simulator_id', '1')),
                                     'driver_name': driver_name,
                                     'lap_time': lap_time,
                                     'email': str(row.get('email', '')),
                                     'phone': str(row.get('phone', '')),
-                                    'timestamp': str(row.get('timestamp', ''))
+                                    'timestamp': str(row.get('timestamp', '')),
+                                    'distance_pct': distance_pct
                                 }
                         except ValueError as e:
                             logger.warning(f"Error processing row {row}: {str(e)}")
@@ -1246,11 +1668,16 @@ class NetworkThread(QThread):
                         except Exception as e:
                             logger.warning(f"Unexpected error processing row {row}: {str(e)}")
                             continue
-                    
-                    # Convert dictionary to list and sort by lap time
-                    sorted_times = sorted(lap_times.values(), key=lambda x: x['lap_time'])
-                    # Return only top 10 fastest drivers
-                    return sorted_times[:10]
+
+                    # Convert dictionary to list and sort by ranking mode
+                    if ranking_mode == 'distance':
+                        sorted_times = sorted(lap_times.values(),
+                                              key=lambda x: (-x['distance_pct'], x['lap_time']))
+                    else:
+                        sorted_times = sorted(lap_times.values(), key=lambda x: x['lap_time'])
+                    # Distance mode shows a 13-entry board (podium + 10); lap_time keeps top 10
+                    max_entries = 13 if ranking_mode == 'distance' else 10
+                    return sorted_times[:max_entries]
             except Exception as e:
                 logger.error(f"Error reading CSV file: {str(e)}")
         
@@ -1301,7 +1728,61 @@ class LeaderboardWindow(QWidget):
         # Also update legacy keys for backward compatibility
         self.config['horizontal_offset'] = self.horizontal_offset
         self.config['vertical_offset'] = self.vertical_offset
-        
+
+    def _ranking_mode(self):
+        return self.config.get('ranking_mode', 'lap_time')
+
+    def _max_entries(self):
+        """Distance mode shows a 13-entry board (podium top 3 + positions 4-13)"""
+        return 13 if self._ranking_mode() == 'distance' else 10
+
+    def _column_layout(self):
+        """Headers and fixed column widths for the current ranking mode.
+        Both modes total 764px so panel geometry is unchanged."""
+        if self._ranking_mode() == 'distance':
+            return ['Position', 'Driver', 'Distance', 'Time'], [100, 364, 120, 180]
+        return ['Position', 'Driver', 'Time'], [100, 484, 180]
+
+    def _apply_panel_size(self):
+        """Size the panel for the current orientation and ranking mode"""
+        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
+        rows = 1 + self._max_entries()  # header + entries
+        if is_vertical:
+            if self._ranking_mode() == 'distance':
+                self.leaderboard_panel.setFixedSize(864, rows * self.config.get('vertical_row_height', 123))
+            else:
+                # 11 rows x 123px = 1353px
+                self.leaderboard_panel.setFixedSize(864, 1353)
+        else:
+            # Horizontal mode: 60px rows; 660px for lap_time (11 rows), 840px for distance (14 rows)
+            panel_width = self.config.get('panel_width', 1200)
+            self.leaderboard_panel.setFixedSize(panel_width, rows * 60)
+
+    def _rebuild_columns(self):
+        """Rebuild the header and drop entry widgets after a runtime ranking mode switch"""
+        headers, widths = self._column_layout()
+        header_layout = self.header_widget.layout()
+        while header_layout.count():
+            item = header_layout.takeAt(0)
+            old_label = item.widget()
+            if old_label:
+                # Unparent immediately so findChildren doesn't see stale labels
+                # before deleteLater is processed by the event loop
+                old_label.setParent(None)
+                old_label.deleteLater()
+        for header, width in zip(headers, widths):
+            label = QLabel(header)
+            label.setFixedWidth(width)
+            label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+            header_layout.addWidget(label)
+        # Entry widgets have the old column count; recreate them on the next update
+        for widget in self.entry_widgets:
+            self.entries_layout.removeWidget(widget)
+            widget.setParent(None)
+            widget.deleteLater()
+        self.entry_widgets = []
+        self._built_ranking_mode = self._ranking_mode()
+
     def setup_ui(self):
         # Set window flags for both modes
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
@@ -1339,37 +1820,30 @@ class LeaderboardWindow(QWidget):
         
         # Rest of the UI setup remains the same
         self.leaderboard_panel = QWidget(self)
-        # Set panel size based on orientation
-        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
-        if is_vertical:
-            # 11 rows x 123px = 1353px
-            self.leaderboard_panel.setFixedSize(864, 1353)
-        else:
-            # Horizontal mode: wider panel for 1920x1080 landscape screens
-            # 11 rows x 55px = 605px height, width from config (default 1200)
-            panel_width = self.config.get('panel_width', 1200)
-            self.leaderboard_panel.setFixedSize(panel_width, 660)
+        # Set panel size based on orientation and ranking mode
+        self._apply_panel_size()
         self.leaderboard_panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         panel_layout = QVBoxLayout(self.leaderboard_panel)
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.setSpacing(0)
         
-        headers = ['Position', 'Driver', 'Time']
+        headers, widths = self._column_layout()
         self.header_widget = QWidget()
-        self.header_widget.setStyleSheet("""
-            QWidget {
+        header_font_size = self.config.get('header_font_size', 30)
+        self.header_widget.setStyleSheet(f"""
+            QWidget {{
                 background-color: rgba(50, 50, 50, 220);
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;
-            }
-            QLabel {
+            }}
+            QLabel {{
                 background-color: transparent;
                 color: white;
-                font-size: 22px;
+                font-size: {header_font_size}px;
                 font-weight: bold;
                 padding: 10px 0px;
-            }
+            }}
         """)
 
         # Set fixed header height based on orientation
@@ -1385,32 +1859,34 @@ class LeaderboardWindow(QWidget):
         header_layout.setSpacing(20)
         header_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        # Balanced widths: Position and Time equal, Driver gets the rest
-        widths = [100, 484, 180]  # Position, Driver, Time
         for header, width in zip(headers, widths):
             label = QLabel(header)
             label.setFixedWidth(width)
             label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
             header_layout.addWidget(label)
-        
+        # Track which mode the columns were built for so a runtime switch rebuilds them
+        self._built_ranking_mode = self._ranking_mode()
+
         panel_layout.addWidget(self.header_widget)
         
         self.entries_widget = QWidget()
-        self.entries_widget.setStyleSheet("""
-            QWidget {
+        entry_font_size = self.config.get('entry_font_size', 30)
+        self.entries_widget.setStyleSheet(f"""
+            QWidget {{
                 background-color: rgba(40, 40, 40, 220);
                 border-bottom-left-radius: 10px;
                 border-bottom-right-radius: 10px;
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: white;
-                font-size: 18px;
+                font-size: {entry_font_size}px;
                 padding: 8px;
-            }
+            }}
         """)
         self.entries_layout = QVBoxLayout(self.entries_widget)
         self.entries_layout.setContentsMargins(20, 0, 20, 0)  # No vertical margins for tight fit
         self.entries_layout.setSpacing(0)  # No spacing - heights are exact
+        self.entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # Entries start from top
         panel_layout.addWidget(self.entries_widget)
         
         layout.addWidget(self.leaderboard_panel)
@@ -1420,29 +1896,32 @@ class LeaderboardWindow(QWidget):
     
     def set_window_mode(self, fullscreen):
         self.is_fullscreen = fullscreen
+        header_font_size = self.config.get('header_font_size', 30)
+        entry_font_size = self.config.get('entry_font_size', 30)
+        opacity = self.config.get('opacity', 220)
         if fullscreen:
             # Remove borders in fullscreen mode
-            self.header_widget.setStyleSheet("""
-                QWidget {
-                    background-color: rgba(50, 50, 50, 220);
-                }
-                QLabel {
+            self.header_widget.setStyleSheet(f"""
+                QWidget {{
+                    background-color: rgba(50, 50, 50, {opacity});
+                }}
+                QLabel {{
                     background-color: transparent;
                     color: white;
-                    font-size: 22px;
+                    font-size: {header_font_size}px;
                     font-weight: bold;
                     padding: 10px 0px;
-                }
+                }}
             """)
-            self.entries_widget.setStyleSheet("""
-                QWidget {
-                    background-color: rgba(40, 40, 40, 220);
-                }
-                QLabel {
+            self.entries_widget.setStyleSheet(f"""
+                QWidget {{
+                    background-color: rgba(40, 40, 40, {opacity});
+                }}
+                QLabel {{
                     color: white;
-                    font-size: 18px;
+                    font-size: {entry_font_size}px;
                     padding: 8px 0px;
-                }
+                }}
             """)
 
             # Get actual screen dimensions
@@ -1483,31 +1962,31 @@ class LeaderboardWindow(QWidget):
             if layout.indexOf(self.leaderboard_panel) == -1:
                 layout.addWidget(self.leaderboard_panel)
 
-            self.header_widget.setStyleSheet("""
-                QWidget {
-                    background-color: rgba(50, 50, 50, 220);
+            self.header_widget.setStyleSheet(f"""
+                QWidget {{
+                    background-color: rgba(50, 50, 50, {opacity});
                     border-top-left-radius: 10px;
                     border-top-right-radius: 10px;
-                }
-                QLabel {
+                }}
+                QLabel {{
                     background-color: transparent;
                     color: white;
-                    font-size: 22px;
+                    font-size: {header_font_size}px;
                     font-weight: bold;
                     padding: 10px 0px;
-                }
+                }}
             """)
-            self.entries_widget.setStyleSheet("""
-                QWidget {
-                    background-color: rgba(40, 40, 40, 220);
+            self.entries_widget.setStyleSheet(f"""
+                QWidget {{
+                    background-color: rgba(40, 40, 40, {opacity});
                     border-bottom-left-radius: 10px;
                     border-bottom-right-radius: 10px;
-                }
-                QLabel {
+                }}
+                QLabel {{
                     color: white;
-                    font-size: 18px;
+                    font-size: {entry_font_size}px;
                     padding: 8px 0px;
-                }
+                }}
             """)
             self.showNormal()
             self.resize(self.leaderboard_panel.width() + 40, 800)  # Add padding
@@ -1688,20 +2167,18 @@ class LeaderboardWindow(QWidget):
         
         # Check orientation for row height
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
-        
+
+        # Rebuild the columns if the ranking mode changed since they were built
+        if self._ranking_mode() != self._built_ranking_mode:
+            self._rebuild_columns()
+
+        # Use fixed spacing of 0 in both orientations (heights are exact)
+        self.entries_layout.setSpacing(0)
         if is_vertical:
-            # Use fixed spacing of 0 for vertical mode (heights are exact)
-            self.entries_layout.setSpacing(0)
-            # Update header height for vertical mode
             self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
-            # Panel size: 864 width, 11 rows x 123px = 1353px
-            self.leaderboard_panel.setFixedSize(864, 1353)
         else:
-            # Horizontal mode: 660px / 11 rows = 60px per row, no spacing
-            self.entries_layout.setSpacing(0)
             self.header_widget.setFixedHeight(60)
-            panel_width = self.config.get('panel_width', 1200)
-            self.leaderboard_panel.setFixedSize(panel_width, 660)
+        self._apply_panel_size()
         
         # Efficiently handle widget recycling
         if data:
@@ -1746,26 +2223,17 @@ class LeaderboardWindow(QWidget):
         layout.setContentsMargins(10, 0, 10, 0)  # Match header margins
         layout.setSpacing(20)  # Match header spacing
 
-        # Use balanced widths matching header: Position and Time equal, Driver gets the rest
-        widths = [100, 484, 180]  # Position, Driver, Time
+        # Column set and widths match the header for the current ranking mode
+        _, widths = self._column_layout()
 
-        # Add labels for position, driver name, and time
-        position_label = QLabel()
-        position_label.setFixedWidth(widths[0])
-        position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        driver_label = QLabel()
-        driver_label.setFixedWidth(widths[1])
-        driver_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-
-        time_label = QLabel()
-        time_label.setFixedWidth(widths[2])
-        time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the time
-        
-        # Add the labels to the layout
-        layout.addWidget(position_label)
-        layout.addWidget(driver_label)
-        layout.addWidget(time_label)
+        for i, width in enumerate(widths):
+            label = QLabel()
+            label.setFixedWidth(width)
+            if i == 1:  # Driver name is left-aligned, everything else centered
+                label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            else:
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(label)
         
         # Check if vertical mode - use fixed row height
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
@@ -1784,9 +2252,10 @@ class LeaderboardWindow(QWidget):
     def _update_entry_widget(self, widget, entry, position):
         """Update an existing entry widget with clean, premium styling"""
         labels = widget.findChildren(QLabel)
+        distance_mode = self._ranking_mode() == 'distance'
 
-        # Use balanced widths matching header: Position and Time equal, Driver gets the rest
-        widths = [100, 484, 180]  # Position, Driver, Time
+        # Widths match the header for the current ranking mode
+        _, widths = self._column_layout()
         for label, width in zip(labels, widths):
             label.setFixedWidth(width)
 
@@ -1798,9 +2267,49 @@ class LeaderboardWindow(QWidget):
         text_gray = '#B0B0B0'
 
         # Font sizes - consistent across all positions for clean look
-        base_font_size = self.config.get('other_font_size', 22)
+        base_font_size = self.config.get('other_font_size', 30)
 
-        if position <= 3:
+        if position <= 3 and distance_mode:
+            # Distance mode podium block - larger per-position fonts, bold accents
+            accent_colors = [gold, silver, bronze]
+            accent = accent_colors[position - 1]
+            # p1/p2/p3_font_size wired as podium sizes; zero vertical padding keeps
+            # the larger text inside the fixed row height
+            podium_size = self.config.get(f'p{position}_font_size', base_font_size + 6)
+
+            labels[0].setStyleSheet(f"""
+                color: {accent};
+                background: transparent;
+                font-size: {podium_size}px;
+                font-weight: bold;
+                border-left: 4px solid {accent};
+                padding: 0px 0px 0px 12px;
+            """)
+            labels[0].setText(str(position))
+
+            labels[1].setStyleSheet(f"""
+                color: {text_white};
+                background: transparent;
+                font-size: {podium_size}px;
+                font-weight: bold;
+                padding: 0px;
+            """)
+
+            # Distance and time - accent colored
+            for label in labels[2:4]:
+                label.setStyleSheet(f"""
+                    color: {accent};
+                    background: transparent;
+                    font-size: {podium_size}px;
+                    font-weight: bold;
+                    padding: 0px;
+                """)
+
+            widget.setStyleSheet(f"""
+                background-color: rgba(255, 255, 255, 8);
+                border-bottom: 1px solid rgba(255, 255, 255, 15);
+            """)
+        elif position <= 3:
             # Podium positions - clean accent colors, no chunky backgrounds
             accent_colors = [gold, silver, bronze]
             accent = accent_colors[position - 1]
@@ -1838,7 +2347,7 @@ class LeaderboardWindow(QWidget):
                 border-bottom: 1px solid rgba(255, 255, 255, 15);
             """)
         else:
-            # Positions 4-10 - clean, minimal styling
+            # Positions below the podium - clean, minimal styling
             labels[0].setStyleSheet(f"""
                 color: {text_gray};
                 background: transparent;
@@ -1856,25 +2365,35 @@ class LeaderboardWindow(QWidget):
                 font-weight: normal;
             """)
 
-            labels[2].setStyleSheet(f"""
-                color: {text_gray};
-                background: transparent;
-                font-size: {base_font_size}px;
-                font-weight: normal;
-            """)
+            for label in labels[2:]:
+                label.setStyleSheet(f"""
+                    color: {text_gray};
+                    background: transparent;
+                    font-size: {base_font_size}px;
+                    font-weight: normal;
+                """)
 
-            # Subtle separator line
+            # Subtle separator line; in distance mode a heavier top border on
+            # position 4 divides the podium block from the rest of the field
+            divider = 'border-top: 2px solid rgba(255, 255, 255, 70);' if (distance_mode and position == 4) else ''
             widget.setStyleSheet(f"""
                 background: transparent;
+                {divider}
                 border-bottom: 1px solid rgba(255, 255, 255, 10);
             """)
 
         # Driver name
         labels[1].setText(entry['driver_name'])
 
-        # Time - clean format
+        # Time is always MM:SS.mmm (elapsed time for partial runs in distance mode)
         time_str = f"{int(entry['lap_time'] // 60):02d}:{entry['lap_time'] % 60:06.3f}"
-        labels[2].setText(time_str)
+        if distance_mode:
+            distance_pct = entry.get('distance_pct', 100.0)
+            # >= 99.95 would round to 100.0 at one decimal - show as a finished run
+            labels[2].setText('100%' if distance_pct >= 99.95 else f"{distance_pct:.1f}%")
+            labels[3].setText(time_str)
+        else:
+            labels[2].setText(time_str)
 
     def update_panel_style(self, opacity):
         """Update the panel styling with given opacity"""
@@ -1928,8 +2447,11 @@ class LeaderboardWindow(QWidget):
 
     def update_column_widths(self):
         """Update all column widths based on current config"""
-        # Use balanced widths: Position and Time equal, Driver gets the rest
-        widths = [100, 484, 180]  # Position, Driver, Time
+        # Rebuild the columns if the ranking mode changed since they were built
+        if self._ranking_mode() != self._built_ranking_mode:
+            self._rebuild_columns()
+
+        _, widths = self._column_layout()
 
         # Update header widths
         header_labels = self.header_widget.findChildren(QLabel)
@@ -1942,15 +2464,8 @@ class LeaderboardWindow(QWidget):
             for label, width in zip(entry_labels, widths):
                 label.setFixedWidth(width)
         
-        # Update panel size based on orientation
-        is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
-        if is_vertical:
-            # Fixed size for vertical orientation: 864 x (11 rows x 123px = 1353)
-            self.leaderboard_panel.setFixedSize(864, 1353)
-        else:
-            # Use configured width for horizontal orientation
-            panel_width = self.config.get('panel_width', 1200)
-            self.leaderboard_panel.setFixedWidth(panel_width)
+        # Update panel size based on orientation and ranking mode
+        self._apply_panel_size()
 
     # Add new methods for moving the leaderboard
     def move_left(self):
@@ -1976,9 +2491,9 @@ class LeaderboardWindow(QWidget):
             self.center_leaderboard_with_offset()
         
         # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
-    
+
     def move_right(self):
         """Move the leaderboard to the right"""
         self.horizontal_offset += 50
@@ -2000,28 +2515,20 @@ class LeaderboardWindow(QWidget):
             self.leaderboard_panel.move(centered_x, current_y)
         else:
             self.center_leaderboard_with_offset()
-        
+
         # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
-    
+
     def center_leaderboard_with_offset(self):
         """Center the leaderboard with the current horizontal and vertical offsets"""
         if self.is_fullscreen:
             # Get actual screen dimensions
             screen = QApplication.primaryScreen().geometry()
-            # For vertical orientation, use fixed size
-            is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
-            if is_vertical:
-                # Fixed size for vertical: 864 x (11 rows x 123px = 1353)
-                self.leaderboard_panel.setFixedSize(864, 1353)
-                panel_width = 864
-                panel_height = 1353
-            else:
-                # Horizontal mode: wider panel for landscape screens
-                panel_width = self.config.get('panel_width', 1200)
-                panel_height = 660
-                self.leaderboard_panel.setFixedSize(panel_width, panel_height)
+            # Fixed size based on orientation and ranking mode
+            self._apply_panel_size()
+            panel_width = self.leaderboard_panel.width()
+            panel_height = self.leaderboard_panel.height()
             
             # Center panel horizontally with offset
             centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
@@ -2062,7 +2569,7 @@ class LeaderboardWindow(QWidget):
         """)
         
         # Update entries widget font size
-        entry_font_size = self.config.get('entry_font_size', 20)
+        entry_font_size = self.config.get('entry_font_size', 30)
         self.entries_widget.setStyleSheet(f"""
             QWidget {{
                 background-color: rgba(40, 40, 40, {self.config.get('opacity', 220)});
@@ -2101,43 +2608,47 @@ class LeaderboardWindow(QWidget):
             self.leaderboard_panel.move(current_x, centered_y)
         else:
             self.center_leaderboard_with_offset()
-        
+
         # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
-    
+
     def move_down(self):
         """Move the leaderboard down"""
         self.vertical_offset += 50
         self._save_offsets_for_orientation()  # Save to correct config keys
-        
+
         # Preserve X position when moving vertically
         if self.is_fullscreen and hasattr(self, 'leaderboard_panel'):
             current_x = self.leaderboard_panel.x()
             screen = QApplication.primaryScreen().geometry()
             panel_height = self.leaderboard_panel.height()
             centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
-            
+
             # Keep the panel within the screen bounds
             if centered_y < 0:
                 centered_y = 0
             elif centered_y + panel_height > screen.height():
                 centered_y = screen.height() - panel_height
-            
+
             self.leaderboard_panel.move(current_x, centered_y)
         else:
             self.center_leaderboard_with_offset()
-        
+
         # Save config file to make the position persistent
-        with open('config.json', 'w') as f:
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
 
 class LapTimeHandler(BaseHTTPRequestHandler):
-    def send_json_response(self, data, status=200):
-        """Helper to send JSON responses"""
+    def send_json_response(self, data, status=200, correlation_id=None, duration_ms=None):
+        """Helper to send JSON responses with instrumentation headers"""
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+        if correlation_id:
+            self.send_header('X-Correlation-ID', correlation_id)
+        if duration_ms is not None:
+            self.send_header('X-Response-Time-Ms', str(int(duration_ms)))
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
@@ -2146,13 +2657,52 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-SimCoaches-Signature')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-SimCoaches-Signature, X-Correlation-ID')
         self.end_headers()
+
+    def _start_request_tracking(self):
+        """Start tracking request timing and concurrency"""
+        global active_requests, max_seen_requests
+        with request_lock:
+            active_requests += 1
+            max_seen_requests = max(max_seen_requests, active_requests)
+            if active_requests > 3:
+                print(f"⚠️ REQUEST QUEUE DEPTH: {active_requests}")
+        return time.time()
+
+    def _end_request_tracking(self, request_start, path, correlation_id):
+        """End tracking and log slow requests"""
+        global active_requests, slow_request_count, last_slow_request_time, last_slow_request_path
+        duration_ms = (time.time() - request_start) * 1000
+
+        with request_lock:
+            active_requests -= 1
+
+        if duration_ms > SLOW_REQUEST_THRESHOLD_MS:
+            slow_request_count += 1
+            last_slow_request_time = datetime.now()
+            last_slow_request_path = path
+            print(f"\n{'='*60}")
+            print(f"⚠️  SLOW REQUEST DETECTED [{correlation_id}]")
+            print(f"Time: {datetime.now().strftime('%H:%M:%S')}")
+            print(f"Path: {path}")
+            print(f"Duration: {duration_ms:.0f}ms (threshold: {SLOW_REQUEST_THRESHOLD_MS}ms)")
+            print(f"Client: {self.client_address[0]}")
+            print(f"Total slow requests: {slow_request_count}")
+            print(f"{'='*60}\n")
+
+        return duration_ms
 
     def do_POST(self):
         global queue_data
         path = self.path.split('?')[0]  # Remove query string
-        print(f"[HTTP POST] Request from {self.client_address[0]} to {path}")
+        client_ip = self.client_address[0]
+
+        # Get or generate correlation ID
+        correlation_id = self.headers.get('X-Correlation-ID') or str(uuid.uuid4())[:8]
+        request_start = self._start_request_tracking()
+
+        print(f"[HTTP POST] [{correlation_id}] Request from {client_ip} to {path}")
 
         try:
             content_length = int(self.headers.get('Content-Length', 0))
@@ -2160,6 +2710,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             data = json.loads(post_data.decode('utf-8')) if post_data else {}
 
             # Route to appropriate handler
+            # Store correlation ID and request start for handlers to use
+            self._correlation_id = correlation_id
+            self._request_start = request_start
+
             if path == '/api/queue/join':
                 self.handle_queue_join(data)
             elif path == '/api/queue/remove':
@@ -2174,13 +2728,21 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_integration_test_event(data)
             elif path == '/api/integration/retry-pending':
                 self.handle_retry_pending_integration_events(data)
+            elif path == '/api/laptimes/sync':
+                # Peer sync endpoint - receives lap times from other receivers
+                self.handle_peer_sync(data)
             else:
                 # Default: handle as lap time submission
                 self.handle_lap_time(data)
 
         except Exception as e:
             print(f"Server error: {str(e)}")
-            self.send_json_response({'success': False, 'error': str(e)}, 500)
+            duration_ms = self._end_request_tracking(request_start, path, correlation_id)
+            self.send_json_response({'success': False, 'error': str(e)}, 500, correlation_id, duration_ms)
+            return
+
+        # Track request completion
+        self._end_request_tracking(request_start, path, correlation_id)
 
     def handle_lap_time(self, lap_data):
         """Handle lap time submission (original behavior)"""
@@ -2221,6 +2783,9 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         if not driver_email:
             driver_email = active_session.get('email', '')
 
+        # Optional distance percentage (sector challenge mode); defaults to a full lap
+        distance_pct = parse_distance_pct(lap_data.get('distance_pct'))
+
         # Create clean data entry
         clean_data = {
             'simulator_id': simulator_id,
@@ -2229,7 +2794,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'email': driver_email,
             'phone': driver_phone,
             'session_id': session_id,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'distance_pct': distance_pct
         }
 
         # Track connected simulator
@@ -2242,10 +2808,11 @@ class LapTimeHandler(BaseHTTPRequestHandler):
 
         # Save to CSV
         csv_file = 'lap_times.csv'
+        migrate_lap_times_csv(csv_file)
         file_exists = os.path.exists(csv_file)
 
         with open(csv_file, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDNAMES)
+            writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDS)
             if not file_exists:
                 writer.writeheader()
             writer.writerow({
@@ -2254,7 +2821,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 'lap_time': clean_data['lap_time'],
                 'email': clean_data['email'],
                 'phone': clean_data['phone'],
-                'timestamp': clean_data['timestamp']
+                'timestamp': clean_data['timestamp'],
+                'distance_pct': clean_data['distance_pct']
             })
 
         print(f"Successfully wrote data: {clean_data}")
@@ -2273,6 +2841,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         # Vincent's integration needs every accepted lap so their system can
         # group by session_id and decide how to display or sort results.
         emit_integration_event(build_race_completed_event(clean_data))
+
+        # Broadcast to peer receivers (if peer discovery is enabled)
+        global peer_discovery
+        if peer_discovery:
+            peer_discovery.sync_lap_time_to_peers(clean_data)
+
         self.send_response(200)
         self.end_headers()
 
@@ -2302,10 +2876,15 @@ class LapTimeHandler(BaseHTTPRequestHandler):
 
     def handle_queue_join(self, data):
         """Add a guest to the queue"""
+        import time as time_module
+        start_time = time_module.time()
+        print(f"\n[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] === RECEIVER: QUEUE JOIN ===")
+
         global queue_data
         name = str(data.get('name') or '').strip()
         email = str(data.get('email') or '').strip()
         phone = str(data.get('phone') or '').strip()
+        print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] Name: {name}")
 
         if not name:
             self.send_json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -2323,10 +2902,17 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         }
 
         queue_data['queue'].append(entry)
+        print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] Saving to file...")
+        save_start = time_module.time()
         save_queue_data()
+        save_elapsed = (time_module.time() - save_start) * 1000
+        print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] File save took {save_elapsed:.0f}ms")
 
         position = len(queue_data['queue'])
         wait_seconds = calculate_wait_time(position)
+
+        total_elapsed = (time_module.time() - start_time) * 1000
+        print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] === RECEIVER: QUEUE JOIN COMPLETE ({total_elapsed:.0f}ms) ===\n")
 
         self.send_json_response({
             'success': True,
@@ -2457,42 +3043,65 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         global queue_data
         path = self.path.split('?')[0]  # Remove query string
         client_ip = self.client_address[0]
-        print(f"[HTTP GET] Request from {client_ip} to {path}")
 
-        # Route to appropriate handler
-        if path == '/api/queue':
-            self.handle_get_queue()
-            return
-        elif path == '/api/queue/stats':
-            self.handle_get_stats()
-            return
-        elif path == '/api/integration/config':
-            self.handle_get_integration_config()
-            return
-        elif path == '/api/leaderboard':
-            self.handle_get_leaderboard()
-            return
-        elif path == '/api/leaderboard/display-config':
-            self.handle_get_leaderboard_display_config()
-            return
-        elif path == '/leaderboard-background':
-            self.handle_leaderboard_background()
-            return
-        elif path in ('/', '/leaderboard'):
-            self.handle_leaderboard_page()
-            return
-        else:
-            # Default: track as connected simulator (ping only)
-            sim_id = f"ping_{client_ip.replace('.', '_')}"
-            connected_simulators[sim_id] = {
-                'ip': client_ip,
-                'last_seen': datetime.now(),
-                'driver': '(Testing connection)',
-                'last_lap': None
-            }
+        # Get or generate correlation ID
+        correlation_id = self.headers.get('X-Correlation-ID') or str(uuid.uuid4())[:8]
+        request_start = self._start_request_tracking()
 
-            self.send_response(200)
-            self.end_headers()
+        # Store for handlers
+        self._correlation_id = correlation_id
+        self._request_start = request_start
+
+        print(f"[HTTP GET] [{correlation_id}] Request from {client_ip} to {path}")
+
+        try:
+            # Route to appropriate handler
+            if path == '/health':
+                # Fast health check endpoint - no blocking operations
+                duration_ms = (time.time() - request_start) * 1000
+                self.send_json_response({
+                    'status': 'ok',
+                    'timestamp': int(datetime.now().timestamp()),
+                    'queue_length': len(queue_data.get('queue', [])),
+                    'active_sessions': len(queue_data.get('active_sessions', {})),
+                    # Instrumentation data
+                    'active_requests': active_requests,
+                    'max_seen_requests': max_seen_requests,
+                    'slow_request_count': slow_request_count,
+                    'last_slow_request_time': last_slow_request_time.isoformat() if last_slow_request_time else None
+                }, correlation_id=correlation_id, duration_ms=duration_ms)
+            elif path == '/api/queue':
+                self.handle_get_queue()
+            elif path == '/api/queue/stats':
+                self.handle_get_stats()
+            elif path == '/api/integration/config':
+                self.handle_get_integration_config()
+            elif path == '/api/leaderboard':
+                self.handle_get_leaderboard()
+            elif path == '/api/leaderboard/display-config':
+                self.handle_get_leaderboard_display_config()
+            elif path == '/leaderboard-background':
+                self.handle_leaderboard_background()
+            elif path in ('/', '/leaderboard'):
+                self.handle_leaderboard_page()
+            elif path == '/api/laptimes':
+                # Peer sync endpoint - returns all lap times for sync
+                self.handle_get_laptimes()
+            else:
+                # Default: track as connected simulator (ping only)
+                sim_id = f"ping_{client_ip.replace('.', '_')}"
+                connected_simulators[sim_id] = {
+                    'ip': client_ip,
+                    'last_seen': datetime.now(),
+                    'driver': '(Testing connection)',
+                    'last_lap': None
+                }
+
+                self.send_response(200)
+                self.send_header('X-Correlation-ID', correlation_id)
+                self.end_headers()
+        finally:
+            self._end_request_tracking(request_start, path, correlation_id)
 
     def handle_get_leaderboard(self):
         """Return read-only leaderboard data for browser displays."""
@@ -2559,13 +3168,19 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         })
 
     def handle_get_queue(self):
-        """Get the full queue with wait time estimates"""
+        """Get the full queue with wait time estimates - uses in-memory queue (no disk I/O)"""
         global queue_data
-        load_queue_data()  # Refresh from file
+        # NOTE: Queue stays in memory, no file read on every request
+        # This eliminates blocking I/O that could cause delays
 
         queue_with_estimates = get_queue_with_estimates()
         active_sessions = queue_data.get('active_sessions', {})
         session_history = queue_data.get('session_history', [])
+
+        # Add correlation ID and timing to response
+        correlation_id = getattr(self, '_correlation_id', None)
+        request_start = getattr(self, '_request_start', time.time())
+        duration_ms = (time.time() - request_start) * 1000
 
         self.send_json_response({
             'success': True,
@@ -2573,12 +3188,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'active_sessions': active_sessions,
             'total_in_queue': len(queue_with_estimates),
             'has_enough_history': len(session_history) >= 3
-        })
+        }, correlation_id=correlation_id, duration_ms=duration_ms)
 
     def handle_get_stats(self):
-        """Get queue statistics"""
+        """Get queue statistics - uses in-memory queue (no disk I/O)"""
         global queue_data
-        load_queue_data()  # Refresh from file
+        # NOTE: Queue stays in memory, no file read on every request
 
         session_history = queue_data.get('session_history', [])
         active_sessions = queue_data.get('active_sessions', {})
@@ -2606,6 +3221,82 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'queue_length': len(queue_data.get('queue', []))
         })
 
+    def handle_get_laptimes(self):
+        """Return all lap times for peer sync"""
+        csv_file = 'lap_times.csv'
+        lap_times = []
+
+        if os.path.exists(csv_file):
+            try:
+                with open(csv_file, 'r', newline='') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        lap_times.append({
+                            'simulator_id': str(row.get('simulator_id', '1')),
+                            'driver_name': str(row.get('driver_name', '')),
+                            'lap_time': str(row.get('lap_time', '')),
+                            'email': str(row.get('email', '')),
+                            'phone': str(row.get('phone', '')),
+                            'timestamp': str(row.get('timestamp', '')),
+                            'distance_pct': str(parse_distance_pct(row.get('distance_pct')))
+                        })
+            except Exception as e:
+                print(f"[PEER] Error reading lap times: {e}")
+
+        self.send_json_response({
+            'success': True,
+            'lap_times': lap_times,
+            'count': len(lap_times)
+        })
+        print(f"[PEER] Served {len(lap_times)} lap times to peer at {self.client_address[0]}")
+
+    def handle_peer_sync(self, data):
+        """Receive a lap time from a peer receiver (won't re-broadcast to prevent loops)"""
+        # Validate required fields
+        required_fields = ['driver_name', 'lap_time', 'timestamp']
+        if not all(field in data for field in required_fields):
+            print(f"[PEER] Sync missing required fields: {data.keys()}")
+            self.send_json_response({'success': False, 'error': 'Missing required fields'}, 400)
+            return
+
+        driver_name = str(data.get('driver_name', ''))
+        lap_time = str(data.get('lap_time', ''))
+        timestamp = str(data.get('timestamp', ''))
+        simulator_id = str(data.get('simulator_id', '1'))
+        email = str(data.get('email', ''))
+        phone = str(data.get('phone', ''))
+        distance_pct = parse_distance_pct(data.get('distance_pct'))
+
+        # Check for duplicate
+        if is_duplicate_lap_time(driver_name, lap_time, timestamp):
+            print(f"[PEER] Duplicate lap time from {self.client_address[0]}, skipping")
+            self.send_json_response({'success': True, 'status': 'duplicate'})
+            return
+
+        # Add to CSV (this is from a peer, so we DON'T broadcast it again)
+        csv_file = 'lap_times.csv'
+        migrate_lap_times_csv(csv_file)
+        file_exists = os.path.exists(csv_file)
+
+        clean_data = {
+            'simulator_id': simulator_id,
+            'driver_name': driver_name,
+            'lap_time': lap_time,
+            'email': email,
+            'phone': phone,
+            'timestamp': timestamp,
+            'distance_pct': distance_pct
+        }
+
+        with open(csv_file, 'a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=LAP_CSV_FIELDS)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(clean_data)
+
+        print(f"[PEER] Synced lap time from {self.client_address[0]}: {driver_name} - {lap_time}")
+        self.send_json_response({'success': True, 'status': 'added'})
+
     def log_message(self, format, *args):
         # Suppress logging to keep the console clean
         pass
@@ -2622,9 +3313,9 @@ class ControlWindow(QMainWindow):
             'opacity': 220,
             'header_font_size': 30,
             'entry_font_size': 30,
-            'p1_font_size': 30,    # First place font size
-            'p2_font_size': 30,    # Second place font size
-            'p3_font_size': 30,    # Third place font size
+            'p1_font_size': 36,    # First place font size (podium rows in distance mode)
+            'p2_font_size': 36,    # Second place font size (podium rows in distance mode)
+            'p3_font_size': 36,    # Third place font size (podium rows in distance mode)
             'other_font_size': 30, # Other positions font size
             'background_image': '',
             'fill_screen': False,   # Whether to fill the entire screen with background
@@ -2641,7 +3332,8 @@ class ControlWindow(QMainWindow):
             'vertical_spacing': 4,   # Default vertical spacing between entries
             'row_height_padding': 16,  # Default padding for row height
             'orientation': 'horizontal',  # 'horizontal' or 'vertical' display mode
-            'vertical_row_height': 123  # Fixed row height for vertical mode (px)
+            'vertical_row_height': 123,  # Fixed row height for vertical mode (px)
+            'ranking_mode': 'lap_time'  # 'lap_time' (fastest lap) or 'distance' (sector challenge)
         }
         self.leaderboard_window = None
         self.network_thread = None
@@ -2661,13 +3353,16 @@ class ControlWindow(QMainWindow):
         if not os.path.exists(csv_file):
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(LAP_CSV_FIELDNAMES)
+                writer.writerow(LAP_CSV_FIELDS)
+        else:
+            migrate_lap_times_csv(csv_file)
     
     def load_config(self):
         """Load configuration from file, keeping defaults if file doesn't exist"""
-        if os.path.exists('config.json'):
+        config_path = get_config_path()
+        if os.path.exists(config_path):
             try:
-                with open('config.json', 'r') as f:
+                with open(config_path, 'r') as f:
                     loaded_config = json.load(f)
                     # Remove deprecated aspect ratio settings
                     if 'use_tall_aspect' in loaded_config:
@@ -2838,6 +3533,23 @@ class ControlWindow(QMainWindow):
         self.discovery_status_label = QLabel("Discovery: Inactive")
         self.discovery_status_label.setStyleSheet("color: #4ec9b0; font-size: 11px; font-style: italic; background: transparent; border: none;")
         server_card_layout.addWidget(self.discovery_status_label)
+
+        # Peer sync status
+        self.peer_status_label = QLabel("Peers: Starting...")
+        self.peer_status_label.setStyleSheet("color: #dcdcaa; font-size: 11px; font-style: italic; background: transparent; border: none;")
+        server_card_layout.addWidget(self.peer_status_label)
+
+        # Receiver address display for manual fallback when auto-discovery fails
+        address_row = QHBoxLayout()
+        address_row.setSpacing(4)
+        address_label = QLabel("Address:")
+        address_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
+        address_row.addWidget(address_label)
+        self.server_address_display = QLabel("")
+        self.server_address_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
+        self.server_address_display.setWordWrap(True)
+        address_row.addWidget(self.server_address_display, 1)
+        server_card_layout.addLayout(address_row)
 
         # Port display
         port_row = QHBoxLayout()
@@ -3083,6 +3795,22 @@ class ControlWindow(QMainWindow):
         refresh_row.addStretch()
         general_layout.addLayout(refresh_row)
 
+        # Ranking mode row
+        ranking_row = QHBoxLayout()
+        ranking_row.setSpacing(8)
+        ranking_label = QLabel("Ranking:")
+        ranking_row.addWidget(ranking_label)
+        self.ranking_mode_combo = QComboBox()
+        self.ranking_mode_combo.addItem("Fastest Lap", "lap_time")
+        self.ranking_mode_combo.addItem("Distance Challenge", "distance")
+        self.ranking_mode_combo.setFixedWidth(170)
+        ranking_index = self.ranking_mode_combo.findData(self.config.get('ranking_mode', 'lap_time'))
+        if ranking_index >= 0:
+            self.ranking_mode_combo.setCurrentIndex(ranking_index)
+        ranking_row.addWidget(self.ranking_mode_combo)
+        ranking_row.addStretch()
+        general_layout.addLayout(ranking_row)
+
         # Connected Simulators section - always visible
         sim_header_row = QHBoxLayout()
         sim_header_row.setSpacing(8)
@@ -3296,6 +4024,8 @@ class ControlWindow(QMainWindow):
         """)
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
+
+        self.update_server_address_display()
 
     def create_partner_integration_tab(self):
         """Create the in-person partner webhook setup panel."""
@@ -3592,7 +4322,7 @@ class ControlWindow(QMainWindow):
             # Clear the leaderboard
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(LAP_CSV_FIELDNAMES)
+                writer.writerow(LAP_CSV_FIELDS)
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
@@ -3629,7 +4359,7 @@ class ControlWindow(QMainWindow):
             # Clear the CSV file (keep header)
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(LAP_CSV_FIELDNAMES)
+                writer.writerow(LAP_CSV_FIELDS)
 
             # Refresh the leaderboard display
             if self.leaderboard_window:
@@ -3686,17 +4416,7 @@ class ControlWindow(QMainWindow):
             # Load the correct offsets for the new orientation
             self.leaderboard_window._load_offsets_for_orientation()
 
-            # Update panel size based on orientation
-            is_vertical = self.config['orientation'] == 'vertical'
-            if is_vertical:
-                # 11 rows x 123px = 1353px
-                self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
-            else:
-                # Horizontal mode: wider panel for 1920x1080 landscape screens
-                panel_width = self.config.get('panel_width', 1200)
-                self.leaderboard_window.leaderboard_panel.setFixedSize(panel_width, 660)
-
-            # Update column widths to reflect new panel size
+            # Update column widths; also re-applies panel size for the new orientation
             self.leaderboard_window.update_column_widths()
 
             # Force refresh of entries to apply new sizing
@@ -3711,7 +4431,7 @@ class ControlWindow(QMainWindow):
                 self.leaderboard_window.set_window_mode(True)
 
         # Save config to persist orientation change
-        with open('config.json', 'w') as f:
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
 
     def move_leaderboard_up(self):
@@ -3738,12 +4458,11 @@ class ControlWindow(QMainWindow):
         """Save settings to config file"""
         # Always get current IP address
         local_ip = get_local_ip()
-        
+        server_port = int(self.server_port_entry.text())
 
-        
         # Update config
         self.config.update({
-            'server_url': f'http://{local_ip}:5000',  # Always use current IP
+            'server_url': f'http://{local_ip}:{server_port}',  # Always use current IP and current port
             'background_image': self.bg_path_entry.text(),
             'refresh_interval': int(self.refresh_interval.text()),
             'opacity': int(self.opacity_entry.text()),
@@ -3753,7 +4472,7 @@ class ControlWindow(QMainWindow):
             'p2_font_size': int(self.p2_font_size.text()),
             'p3_font_size': int(self.p3_font_size.text()),
             'other_font_size': int(self.other_font_size.text()),
-            'server_port': int(self.server_port_entry.text()),
+            'server_port': server_port,
             'fill_screen': self.fill_toggle.text() == "Fill Screen",
             'position_width': int(self.position_width.text()),
             'driver_width': int(self.driver_width.text()),
@@ -3761,7 +4480,10 @@ class ControlWindow(QMainWindow):
             'panel_width': int(self.panel_width.text()),
             'vertical_spacing': int(self.vertical_spacing.text()),
             'row_height_padding': int(self.row_height_padding.text()),
-            'orientation': self.orientation_toggle.text().lower()
+            'orientation': self.orientation_toggle.text().lower(),
+            # update() mutates self.config in place, so the NetworkThread (which holds
+            # this same dict) picks up the new ranking_mode on its next read pass
+            'ranking_mode': self.ranking_mode_combo.currentData()
         })
         
         # Preserve per-mode offset values
@@ -3776,25 +4498,17 @@ class ControlWindow(QMainWindow):
             # Also update legacy keys for backward compatibility
             self.config['horizontal_offset'] = self.leaderboard_window.horizontal_offset
             self.config['vertical_offset'] = self.leaderboard_window.vertical_offset
-        
-        with open('config.json', 'w') as f:
+
+        with open(get_config_path(), 'w') as f:
             json.dump(self.config, f)
-            
+
         if self.leaderboard_window:
             # Update the config in the leaderboard window first
             self.leaderboard_window.config = self.config.copy()  # Make a deep copy to ensure it's passed correctly
             
-            # Update panel size based on orientation
-            is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
-            if is_vertical:
-                # 11 rows x 123px = 1353px
-                self.leaderboard_window.leaderboard_panel.setFixedSize(864, 1353)
-            else:
-                panel_width = self.config.get('panel_width', 1200)
-                self.leaderboard_window.leaderboard_panel.setFixedWidth(panel_width)
-            
-            # Update visual elements in order
-            self.leaderboard_window.update_column_widths()  # First update column widths
+            # Update visual elements in order; update_column_widths also re-applies
+            # panel size and rebuilds the columns if the ranking mode changed
+            self.leaderboard_window.update_column_widths()
             
             # Use current data to force refresh with new font sizes
             if self.network_thread and hasattr(self.network_thread, '_last_data'):
@@ -3811,6 +4525,8 @@ class ControlWindow(QMainWindow):
         
         # Update the server URL display in the UI
         self.server_url_entry.setText(self.config['server_url'])
+        self.server_port_display.setText(str(server_port))
+        self.update_server_address_display()
         self.update_mirror_url_display()
 
         partner_saved = True
@@ -3821,6 +4537,15 @@ class ControlWindow(QMainWindow):
             self.statusBar().showMessage("Settings saved successfully")
         else:
             self.statusBar().showMessage("Settings saved, but Vincent setup needs attention")
+
+    def update_server_address_display(self):
+        """Show the receiver address for manual sender setup."""
+        if not hasattr(self, 'server_address_display'):
+            return
+
+        local_ip = get_local_ip()
+        port = int(self.config.get('server_port', 5000))
+        self.server_address_display.setText(f"http://{local_ip}:{port}")
     
     def start_network_thread(self):
         if self.network_thread:
@@ -3960,6 +4685,7 @@ class ControlWindow(QMainWindow):
                 print(f"[BACKGROUND] Applied: {bg_path}")
 
     def toggle_server(self):
+        global peer_discovery
         if hasattr(self, 'http_server'):
             # Stop the server
             self.http_server.shutdown()
@@ -3971,11 +4697,18 @@ class ControlWindow(QMainWindow):
                 self.discovery_responder.stop()
                 delattr(self, 'discovery_responder')
 
+            # Stop peer discovery
+            if peer_discovery:
+                peer_discovery.stop()
+                peer_discovery = None
+
             self.server_status_label.setText("Stopped")
             self.server_status_label.setStyleSheet("color: #888888; font-size: 12px; background: transparent; border: none;")
             self.server_status_dot.setStyleSheet("color: #888888; font-size: 10px; background: transparent; border: none;")
             self.discovery_status_label.setText("Discovery: Inactive")
             self.update_mirror_url_display()
+            self.peer_status_label.setText("Peers: Inactive")
+            self.update_server_address_display()
             self.server_toggle_btn.setText("Start Server")
             self.server_toggle_btn.setStyleSheet("""
                 QPushButton {
@@ -3993,9 +4726,14 @@ class ControlWindow(QMainWindow):
         else:
             # Start the server
             try:
+                # Load queue data into memory before starting server
+                print("[Server] Loading queue data into memory...")
+                load_queue_data()
+                print(f"[Server] Queue ready: {len(queue_data.get('queue', []))} entries")
+
                 port = int(self.server_port_entry.text())
                 server_address = ('', port)
-                self.http_server = HTTPServer(server_address, LapTimeHandler)
+                self.http_server = ThreadingHTTPServer(server_address, LapTimeHandler)
                 self.server_thread = threading.Thread(target=self.http_server.serve_forever)
                 self.server_thread.daemon = True
                 self.server_thread.start()
@@ -4004,6 +4742,13 @@ class ControlWindow(QMainWindow):
                 self.discovery_responder = DiscoveryResponder(port)
                 self.discovery_responder.start()
 
+                # Start peer discovery for receiver-to-receiver sync
+                peer_discovery = PeerDiscovery(port, status_callback=self.update_peer_status)
+                peer_discovery.start()
+
+                # Perform initial peer discovery and sync in background
+                threading.Thread(target=self._initial_peer_sync, daemon=True).start()
+
                 # Update server URL with new port
                 local_ip = get_local_ip()
                 self.config['server_url'] = f'http://{local_ip}:{port}'
@@ -4011,9 +4756,10 @@ class ControlWindow(QMainWindow):
                 self.server_url_entry.setText(self.config['server_url'])
                 self.server_port_display.setText(str(port))
                 self.update_mirror_url_display()
+                self.update_server_address_display()
 
                 # Save config to persist port change
-                with open('config.json', 'w') as f:
+                with open(get_config_path(), 'w') as f:
                     json.dump(self.config, f)
 
                 self.server_status_label.setText("Running")
@@ -4043,8 +4789,10 @@ class ControlWindow(QMainWindow):
     def start_lap_time_server(self):
         """Start HTTP server to receive lap times"""
         try:
-            # Load queue data from file
+            # Load queue data into memory (one-time at startup)
+            print("[Server] Loading queue data into memory...")
             load_queue_data()
+            print(f"[Server] Queue ready: {len(queue_data.get('queue', []))} entries")
 
             # SMS is now handled by Sender - no need to load SMS config here
 
@@ -4053,7 +4801,7 @@ class ControlWindow(QMainWindow):
             self.server_port_entry.setText(str(port))
 
             server_address = ('', port)
-            self.http_server = HTTPServer(server_address, LapTimeHandler)
+            self.http_server = ThreadingHTTPServer(server_address, LapTimeHandler)
             self.server_thread = threading.Thread(target=self.http_server.serve_forever)
             self.server_thread.daemon = True
             self.server_thread.start()
@@ -4061,6 +4809,14 @@ class ControlWindow(QMainWindow):
             # Start UDP discovery responder for auto-discovery by simulators
             self.discovery_responder = DiscoveryResponder(port)
             self.discovery_responder.start()
+
+            # Start peer discovery for receiver-to-receiver sync
+            global peer_discovery
+            peer_discovery = PeerDiscovery(port, status_callback=self.update_peer_status)
+            peer_discovery.start()
+
+            # Perform initial peer discovery and sync in background
+            threading.Thread(target=self._initial_peer_sync, daemon=True).start()
 
             # Update server URL with initial port
             local_ip = get_local_ip()
@@ -4072,6 +4828,7 @@ class ControlWindow(QMainWindow):
             self.server_status_label.setStyleSheet("color: #4ec9b0; font-size: 12px; background: transparent; border: none;")
             self.server_status_dot.setStyleSheet("color: #4ec9b0; font-size: 10px; background: transparent; border: none;")
             self.server_port_display.setText(str(port))
+            self.update_server_address_display()
             self.discovery_status_label.setText(f"Discovery: Active (UDP {DISCOVERY_PORT})")
             self.server_toggle_btn.setText("Stop Server")
             self.server_toggle_btn.setStyleSheet("""
@@ -4092,7 +4849,27 @@ class ControlWindow(QMainWindow):
             self.server_status_label.setStyleSheet("color: #f48771; font-size: 12px; background: transparent; border: none;")
             self.server_status_dot.setStyleSheet("color: #f48771; font-size: 10px; background: transparent; border: none;")
             self.statusBar().showMessage(f"Error starting lap time server: {str(e)}")
-    
+
+    def _initial_peer_sync(self):
+        """Perform initial peer discovery and sync on startup"""
+        global peer_discovery
+        if peer_discovery:
+            print("[PEER] Performing initial peer discovery and sync...")
+            peer_discovery.initial_discovery()
+
+    def update_peer_status(self, status_text):
+        """Update peer status in UI (called from PeerDiscovery thread)"""
+        # Use Qt's thread-safe signal mechanism
+        if hasattr(self, 'peer_status_label'):
+            # This needs to be called from the main thread
+            from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+            QMetaObject.invokeMethod(
+                self.peer_status_label,
+                "setText",
+                Qt.ConnectionType.QueuedConnection,
+                Q_ARG(str, status_text)
+            )
+
     def closeEvent(self, event):
         reply = QMessageBox.question(
             self, 'Quit',
@@ -4108,6 +4885,11 @@ class ControlWindow(QMainWindow):
                 self.http_server.shutdown()
             if hasattr(self, 'discovery_responder'):
                 self.discovery_responder.stop()
+            # Stop peer discovery
+            global peer_discovery
+            if peer_discovery:
+                peer_discovery.stop()
+                peer_discovery = None
             if self.leaderboard_window:
                 self.leaderboard_window.close()
             event.accept()
