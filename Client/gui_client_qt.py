@@ -3994,9 +3994,16 @@ class ControlWindow(QMainWindow):
         self.ranking_mode_combo.addItem("Fastest Lap", "lap_time")
         self.ranking_mode_combo.addItem("Distance Challenge", "distance")
         self.ranking_mode_combo.setFixedWidth(170)
+        self.ranking_mode_combo.setToolTip(
+            "Fastest Lap: classic top 10.\n"
+            "Distance Challenge: sector challenge board, 13 places with a Distance column.\n"
+            "Takes effect immediately."
+        )
         ranking_index = self.ranking_mode_combo.findData(self.config.get('ranking_mode', 'lap_time'))
         if ranking_index >= 0:
             self.ranking_mode_combo.setCurrentIndex(ranking_index)
+        # Connect after setting the initial index so startup doesn't count as a change
+        self.ranking_mode_combo.currentIndexChanged.connect(self.on_ranking_mode_changed)
         ranking_row.addWidget(self.ranking_mode_combo)
         ranking_row.addStretch()
         general_layout.addLayout(ranking_row)
@@ -4773,6 +4780,46 @@ class ControlWindow(QMainWindow):
         QApplication.clipboard().setText(url)
         label = {'distance': 'sector challenge', 'lap_time': 'classic top 10'}.get(mode, 'mirror')
         self.statusBar().showMessage(f"Copied {label} URL: {url}", 5000)
+
+    def on_ranking_mode_changed(self, _index=None):
+        """Switch the leaderboard as soon as the ranking is picked.
+
+        Previously the choice only took effect on Save Settings, and even then
+        the columns were rebuilt from an update path that runs on new lap data
+        - so on an idle or empty board nothing appeared to happen.
+        """
+        mode = self.ranking_mode_combo.currentData()
+        if mode not in ('lap_time', 'distance'):
+            return
+        if self.config.get('ranking_mode') == mode:
+            return
+
+        # Mutate in place: NetworkThread holds a reference to this same dict
+        self.config['ranking_mode'] = mode
+        try:
+            with open(get_config_path(), 'w') as f:
+                json.dump(self.config, f)
+        except Exception as e:
+            logger.warning(f"Could not save ranking mode: {e}")
+
+        window = getattr(self, 'leaderboard_window', None)
+        if window:
+            # The window may hold its own copy of the config after a save
+            window.config['ranking_mode'] = mode
+            window.update_column_widths()  # rebuilds columns and resizes the panel
+            thread = getattr(self, 'network_thread', None)
+            if thread:
+                # Re-read so the rows are ranked and limited for the new mode
+                # instead of showing the previous board's order until the next poll
+                try:
+                    data = thread.read_lap_times()
+                    thread._last_data = data.copy()
+                    window.update_entries(data)
+                except Exception as e:
+                    logger.warning(f"Could not refresh leaderboard after mode change: {e}")
+
+        label = "Distance Challenge (13 places)" if mode == 'distance' else "Fastest Lap (top 10)"
+        self.statusBar().showMessage(f"Leaderboard switched to {label}", 4000)
 
     def update_simulators_display(self):
         """Update the connected simulators display"""
