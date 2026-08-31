@@ -510,17 +510,19 @@ LEADERBOARD_HTML_CONTENT = r"""
         .header,
         .row {
             display: grid;
-            grid-template-columns: var(--position-col) var(--driver-col) var(--time-col);
+            /* Driver column flexes so the fixed columns + gaps + padding always
+               fit the board exactly (it resolves to 484px here, matching the
+               desktop board, and shrinks to fit when Distance is added) */
+            grid-template-columns: var(--position-col) minmax(0, 1fr) var(--time-col);
             column-gap: var(--column-gap);
             align-items: center;
             justify-content: start;
             padding: 0 var(--content-padding);
         }
-        /* Distance (sector challenge) mode: Position | Driver | Distance | Time,
-           matching the desktop board's 100/364/120/180 columns */
+        /* Distance (sector challenge) mode: Position | Driver | Distance | Time */
         .distance-mode .header,
         .distance-mode .row {
-            grid-template-columns: var(--position-col) 364px var(--distance-col) var(--time-col);
+            grid-template-columns: var(--position-col) minmax(0, 1fr) var(--distance-col) var(--time-col);
         }
         .header {
             height: var(--row-height);
@@ -808,9 +810,31 @@ LEADERBOARD_HTML_CONTENT = r"""
             headerEl.replaceChildren(...titles.map(function (title) {
                 const cell = document.createElement('div');
                 cell.style.textAlign = 'center';
+                cell.style.whiteSpace = 'nowrap';
                 cell.textContent = title;
                 return cell;
             }));
+            fitHeaderText();
+        }
+
+        function fitHeaderText() {
+            // "Position" and "Distance" are wider than their fixed columns at
+            // the default 30px, so a label would spill over its neighbour.
+            // Shrink only the cells that don't fit, whatever font size the
+            // operator has configured.
+            const headerEl = document.getElementById('header');
+            if (!headerEl) { return; }
+            const base = parseFloat(
+                getComputedStyle(document.documentElement).getPropertyValue('--header-font-size')
+            ) || 30;
+            [...headerEl.children].forEach(function (cell) {
+                cell.style.fontSize = '';
+                if (!cell.clientWidth || !cell.scrollWidth) { return; }
+                if (cell.scrollWidth > cell.clientWidth) {
+                    const ratio = (cell.clientWidth / cell.scrollWidth) * 0.97;
+                    cell.style.fontSize = `${Math.max(10, Math.floor(base * ratio))}px`;
+                }
+            });
         }
 
         function formatDistance(value) {
@@ -3708,16 +3732,22 @@ class ControlWindow(QMainWindow):
         port_row.addStretch()
         server_card_layout.addLayout(port_row)
 
-        mirror_label = QLabel("Browser mirror URLs (open on any screen on this network):")
+        mirror_label = QLabel("Browser mirrors - /leaderboard")
         mirror_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
         mirror_label.setWordWrap(True)
         server_card_layout.addWidget(mirror_label)
 
         self.mirror_url_display = QLabel()
         self.mirror_url_display.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.mirror_url_display.setWordWrap(True)
+        # No word wrap: these are short fixed paths, and wrapping would let the
+        # layout squeeze the label down to a single clipped line
+        self.mirror_url_display.setWordWrap(False)
         self.mirror_url_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
         self.update_mirror_url_display()
+        # Guarantee room for both lines whatever else the card holds
+        self.mirror_url_display.setMinimumHeight(
+            self.mirror_url_display.fontMetrics().height() * 2 + 4
+        )
         server_card_layout.addWidget(self.mirror_url_display)
 
         mirror_btn_style = """
@@ -3748,12 +3778,6 @@ class ControlWindow(QMainWindow):
         mirror_btn_row.addWidget(copy_top10_btn)
 
         server_card_layout.addLayout(mirror_btn_row)
-
-        copy_mirror_btn = QPushButton("Copy Mirror URL (follows this app)")
-        copy_mirror_btn.setToolTip("Browser mirror that follows whichever board this app is showing")
-        copy_mirror_btn.setStyleSheet(mirror_btn_style)
-        copy_mirror_btn.clicked.connect(lambda: self.copy_mirror_url(None))
-        server_card_layout.addWidget(copy_mirror_btn)
 
         server_card_layout.addStretch()
 
@@ -4735,11 +4759,13 @@ class ControlWindow(QMainWindow):
         return url
 
     def update_mirror_url_display(self):
+        """Show the mirror paths compactly - the full address is already on the
+        Address line above, and the copy buttons put complete URLs on the
+        clipboard, so repeating it three times just overflows this card."""
         if hasattr(self, 'mirror_url_display'):
             self.mirror_url_display.setText(
-                f"Sector challenge:  {self.get_mirror_url('distance')}\n"
-                f"Classic top 10:    {self.get_mirror_url('lap_time')}\n"
-                f"Follows this app:  {self.get_mirror_url()}"
+                "?mode=distance = challenge\n"
+                "?mode=lap_time = top 10"
             )
 
     def copy_mirror_url(self, mode=None):
