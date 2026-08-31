@@ -39,6 +39,17 @@ mode it picks each driver's furthest run (elapsed time breaks ties), shows 13
 entries with the Distance column and podium divider, and sizes the board for
 14 rows. `ranking_mode` reaches it through the mirror display config.
 
+Each mirror window can pin its own board with a `mode` query parameter, so a
+venue can run both at once from one receiver:
+
+- `/leaderboard?mode=distance` - sector challenge board (13 rows + Distance)
+- `/leaderboard?mode=lap_time` - classic fastest-lap top 10
+- `/leaderboard` - follows whatever the desktop leaderboard is set to
+
+The page passes its pinned mode to `/api/leaderboard` and
+`/api/leaderboard/display-config` (`?mode=...`); both endpoints also report
+the `ranking_mode` they used. Invalid values fall back to the configured mode.
+
 **LapTimeHandler** - HTTP request handler for the built-in server. Key endpoints:
 - `/api/queue/join`, `/api/queue/remove`, `/api/queue/assign` - Queue management
 - `/api/session/started`, `/api/session/ended` - Session tracking

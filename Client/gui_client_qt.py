@@ -8,6 +8,7 @@ import hmac
 import uuid
 import mimetypes
 import time
+import urllib.parse
 from datetime import datetime
 import requests
 import logging
@@ -328,15 +329,28 @@ def emit_integration_event(event):
     thread = threading.Thread(target=deliver_integration_event, args=(event,), daemon=True)
     thread.start()
 
-def read_leaderboard_entries(limit=None):
+def normalize_ranking_mode(value):
+    """Coerce a ranking mode to 'distance' or 'lap_time' (None -> None)."""
+    if value is None:
+        return None
+    value = str(value).strip().lower()
+    return value if value in ('distance', 'lap_time') else None
+
+def read_leaderboard_entries(limit=None, ranking_mode=None):
     """Read the best run per driver from the CSV store for browser mirrors.
 
-    Mirrors the desktop board's rules so both displays always agree:
+    Mirrors the desktop board's rules so displays always agree:
       - lap_time mode  : fastest lap wins, top 10
       - distance mode  : furthest distance wins (elapsed time breaks ties),
                          13 entries (podium + positions 4-13)
+
+    `ranking_mode` overrides the configured mode, which lets two browser
+    windows show different boards at once (a sector-challenge board and a
+    classic top 10) from the same running receiver.
     """
-    ranking_mode = load_display_config_for_mirror().get('ranking_mode', 'lap_time')
+    ranking_mode = normalize_ranking_mode(ranking_mode)
+    if ranking_mode is None:
+        ranking_mode = load_display_config_for_mirror().get('ranking_mode', 'lap_time')
     distance_mode = ranking_mode == 'distance'
     if limit is None:
         limit = 13 if distance_mode else 10
@@ -676,6 +690,19 @@ LEADERBOARD_HTML_CONTENT = r"""
         const fullscreenButton = document.getElementById('fullscreenButton');
         let displayConfig = {};
 
+        // ?mode=distance or ?mode=lap_time pins THIS window to one board, so a
+        // venue can show the sector challenge on one screen and the classic
+        // top 10 on another at the same time. Without it the window follows
+        // whatever the desktop leaderboard is set to.
+        const pinnedMode = (function () {
+            const value = new URLSearchParams(window.location.search).get('mode');
+            return (value === 'distance' || value === 'lap_time') ? value : null;
+        })();
+
+        function apiUrl(path) {
+            return pinnedMode ? `${path}?mode=${pinnedMode}` : path;
+        }
+
         function asNumber(value, fallback) {
             const parsed = Number(value);
             return Number.isFinite(parsed) ? parsed : fallback;
@@ -734,7 +761,7 @@ LEADERBOARD_HTML_CONTENT = r"""
 
         async function refreshConfig() {
             try {
-                const response = await fetch('/api/leaderboard/display-config', { cache: 'no-store' });
+                const response = await fetch(apiUrl('/api/leaderboard/display-config'), { cache: 'no-store' });
                 const data = await response.json();
                 applyConfig(data.config || {});
             } catch (error) {
@@ -745,7 +772,7 @@ LEADERBOARD_HTML_CONTENT = r"""
 
         async function refreshLeaderboard() {
             try {
-                const response = await fetch('/api/leaderboard', { cache: 'no-store' });
+                const response = await fetch(apiUrl('/api/leaderboard'), { cache: 'no-store' });
                 const data = await response.json();
                 const entries = data.entries || [];
                 document.body.classList.remove('offline');
@@ -762,6 +789,8 @@ LEADERBOARD_HTML_CONTENT = r"""
         }
 
         function isDistanceMode() {
+            // A pinned window never waits on (or follows) the desktop config
+            if (pinnedMode) { return pinnedMode === 'distance'; }
             return String(displayConfig.ranking_mode || 'lap_time') === 'distance';
         }
 
@@ -3201,18 +3230,36 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         finally:
             self._end_request_tracking(request_start, path, correlation_id)
 
+    def _requested_ranking_mode(self):
+        """Ranking mode asked for by this request (?mode=distance|lap_time).
+
+        Lets a venue keep two browser boards open at once - e.g. a sector
+        challenge screen and a classic top 10 - independent of the desktop
+        window's setting. Absent or invalid -> None (follow the config).
+        """
+        query = urllib.parse.urlparse(self.path).query
+        requested = urllib.parse.parse_qs(query).get('mode', [None])[0]
+        return normalize_ranking_mode(requested)
+
     def handle_get_leaderboard(self):
         """Return read-only leaderboard data for browser displays."""
+        mode = self._requested_ranking_mode()
         self.send_json_response({
             'success': True,
-            'entries': read_leaderboard_entries()
+            'ranking_mode': mode or load_display_config_for_mirror().get('ranking_mode', 'lap_time'),
+            'entries': read_leaderboard_entries(ranking_mode=mode)
         })
 
     def handle_get_leaderboard_display_config(self):
         """Return display settings needed by the browser mirror."""
+        config = load_display_config_for_mirror()
+        mode = self._requested_ranking_mode()
+        if mode:
+            # Pinned by URL: this window keeps its own columns and row count
+            config['ranking_mode'] = mode
         self.send_json_response({
             'success': True,
-            'config': load_display_config_for_mirror()
+            'config': config
         })
 
     def handle_leaderboard_page(self):
