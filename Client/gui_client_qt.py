@@ -3708,19 +3708,19 @@ class ControlWindow(QMainWindow):
         port_row.addStretch()
         server_card_layout.addLayout(port_row)
 
-        mirror_label = QLabel("Mirror URL:")
+        mirror_label = QLabel("Browser mirror URLs (open on any screen on this network):")
         mirror_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent; border: none;")
+        mirror_label.setWordWrap(True)
         server_card_layout.addWidget(mirror_label)
 
-        self.mirror_url_display = QLabel(self.get_mirror_url())
+        self.mirror_url_display = QLabel()
         self.mirror_url_display.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.mirror_url_display.setWordWrap(True)
         self.mirror_url_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
+        self.update_mirror_url_display()
         server_card_layout.addWidget(self.mirror_url_display)
 
-        copy_mirror_btn = QPushButton("Copy Mirror URL")
-        copy_mirror_btn.setToolTip("Copy the browser mirror URL for another computer on the same network")
-        copy_mirror_btn.setStyleSheet("""
+        mirror_btn_style = """
             QPushButton {
                 background-color: #3c3c3c;
                 color: #ffffff;
@@ -3730,8 +3730,29 @@ class ControlWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #505050;
             }
-        """)
-        copy_mirror_btn.clicked.connect(self.copy_mirror_url)
+        """
+        mirror_btn_row = QHBoxLayout()
+        mirror_btn_row.setSpacing(6)
+
+        copy_challenge_btn = QPushButton("Copy Challenge URL")
+        copy_challenge_btn.setToolTip("Sector challenge board: 13 places with the Distance column")
+        copy_challenge_btn.setStyleSheet(mirror_btn_style)
+        # lambda keeps Qt's `checked` argument out of the mode parameter
+        copy_challenge_btn.clicked.connect(lambda: self.copy_mirror_url('distance'))
+        mirror_btn_row.addWidget(copy_challenge_btn)
+
+        copy_top10_btn = QPushButton("Copy Top 10 URL")
+        copy_top10_btn.setToolTip("Classic leaderboard: top 10 by fastest lap")
+        copy_top10_btn.setStyleSheet(mirror_btn_style)
+        copy_top10_btn.clicked.connect(lambda: self.copy_mirror_url('lap_time'))
+        mirror_btn_row.addWidget(copy_top10_btn)
+
+        server_card_layout.addLayout(mirror_btn_row)
+
+        copy_mirror_btn = QPushButton("Copy Mirror URL (follows this app)")
+        copy_mirror_btn.setToolTip("Browser mirror that follows whichever board this app is showing")
+        copy_mirror_btn.setStyleSheet(mirror_btn_style)
+        copy_mirror_btn.clicked.connect(lambda: self.copy_mirror_url(None))
         server_card_layout.addWidget(copy_mirror_btn)
 
         server_card_layout.addStretch()
@@ -4700,19 +4721,32 @@ class ControlWindow(QMainWindow):
         self.network_thread.server_status_updated.connect(self.statusBar().showMessage)
         self.network_thread.start()
 
-    def get_mirror_url(self):
-        """Return the browser URL for mirroring the leaderboard from another computer."""
+    def get_mirror_url(self, mode=None):
+        """Browser URL for mirroring the leaderboard from another computer.
+
+        `mode` pins that window to one board ('distance' or 'lap_time') so a
+        venue can show the sector challenge and the classic top 10 at the same
+        time; without it the window follows this leaderboard's setting.
+        """
         base_url = self.config.get('server_url') or f"http://{get_local_ip()}:{self.config.get('server_port', 5000)}"
-        return base_url.rstrip('/') + '/leaderboard'
+        url = base_url.rstrip('/') + '/leaderboard'
+        if mode in ('distance', 'lap_time'):
+            url += f'?mode={mode}'
+        return url
 
     def update_mirror_url_display(self):
         if hasattr(self, 'mirror_url_display'):
-            self.mirror_url_display.setText(self.get_mirror_url())
+            self.mirror_url_display.setText(
+                f"Sector challenge:  {self.get_mirror_url('distance')}\n"
+                f"Classic top 10:    {self.get_mirror_url('lap_time')}\n"
+                f"Follows this app:  {self.get_mirror_url()}"
+            )
 
-    def copy_mirror_url(self):
-        url = self.get_mirror_url()
+    def copy_mirror_url(self, mode=None):
+        url = self.get_mirror_url(mode)
         QApplication.clipboard().setText(url)
-        self.statusBar().showMessage(f"Copied mirror URL: {url}", 5000)
+        label = {'distance': 'sector challenge', 'lap_time': 'classic top 10'}.get(mode, 'mirror')
+        self.statusBar().showMessage(f"Copied {label} URL: {url}", 5000)
 
     def update_simulators_display(self):
         """Update the connected simulators display"""
