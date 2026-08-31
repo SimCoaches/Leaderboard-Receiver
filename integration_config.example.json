@@ -1,9 +1,0 @@
-{
-  "enabled": true,
-  "dry_run": false,
-  "webhook_url": "https://partner.example.com/webhooks/simcoaches/race-completed",
-  "api_key": "replace-with-shared-api-key",
-  "signing_secret": "replace-with-shared-signing-secret",
-  "timeout_seconds": 5,
-  "demo_url": "https://partner.example.com/demo"
-}

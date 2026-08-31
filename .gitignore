@@ -41,12 +41,6 @@ Client/lap_times.csv
 Client/twilio_config.json
 Client/sms_config.json
 Client/queue.json
-integration_config.json
-Client/integration_config.json
-integration_events.jsonl
-Client/integration_events.jsonl
-integration_pending.jsonl
-Client/integration_pending.jsonl
 
 # OS files
 .DS_Store

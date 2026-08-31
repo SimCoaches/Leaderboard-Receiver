@@ -3,8 +3,6 @@ import json
 import os
 import csv
 import shutil
-import hashlib
-import hmac
 import uuid
 import mimetypes
 import time
@@ -51,15 +49,8 @@ queue_data = {
 QUEUE_FILE = "queue.json"
 MAX_SESSION_HISTORY = 50
 
-# Partner integration storage. Disabled by default so the existing leaderboard
-# path continues to work even if partner config is missing or broken.
-INTEGRATION_CONFIG_FILE = "integration_config.json"
-INTEGRATION_LOG_FILE = "integration_events.jsonl"
-INTEGRATION_PENDING_FILE = "integration_pending.jsonl"
 LAP_CSV_FIELDS = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp', 'distance_pct']
 DISPLAY_CONFIG_FILE = "config.json"
-VINCENT_API_KEY = "Yu2Rq3YTY8p5bVYkwHonhYQoAZvCSYNWkLXZg5dhbh0"
-VINCENT_SIGNING_SECRET = "043AnoEa9p4teSUi27QU3781-g7agsP4jSBubDhvAzs"
 DISPLAY_CONFIG_DEFAULTS = {
     'opacity': 220,
     'header_font_size': 30,
@@ -77,121 +68,8 @@ DISPLAY_CONFIG_DEFAULTS = {
     # Browser mirror needs this to match the desktop board's columns and size
     'ranking_mode': 'lap_time'
 }
-integration_config = {
-    "enabled": False,
-    "dry_run": False,
-    "webhook_url": "",
-    "api_key": VINCENT_API_KEY,
-    "signing_secret": VINCENT_SIGNING_SECRET,
-    "timeout_seconds": 5,
-    "demo_url": ""
-}
-
-def load_integration_config():
-    """Load partner integration settings from disk."""
-    global integration_config
-    should_save = False
-    if os.path.exists(INTEGRATION_CONFIG_FILE):
-        try:
-            with open(INTEGRATION_CONFIG_FILE, 'r') as f:
-                loaded = json.load(f)
-                integration_config.update(loaded)
-        except Exception as e:
-            logger.warning(f"Error loading integration config: {e}")
-            should_save = True
-    else:
-        print(f"[Integration] Created disabled config file: {INTEGRATION_CONFIG_FILE}")
-
-    # This integration is only for Vincent's team for this event. Keep the
-    # previously shared credentials stable even if an installed config is blank
-    # or someone clicked an older Generate button.
-    if integration_config.get("api_key") != VINCENT_API_KEY:
-        integration_config["api_key"] = VINCENT_API_KEY
-        should_save = True
-    if integration_config.get("signing_secret") != VINCENT_SIGNING_SECRET:
-        integration_config["signing_secret"] = VINCENT_SIGNING_SECRET
-        should_save = True
-    if not os.path.exists(INTEGRATION_CONFIG_FILE) or should_save:
-        save_integration_config()
-    return integration_config
-
-def save_integration_config():
-    """Save partner integration settings to disk."""
-    try:
-        safe_config = integration_config.copy()
-        with open(INTEGRATION_CONFIG_FILE, 'w') as f:
-            json.dump(safe_config, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Error saving integration config: {e}")
-
-def append_integration_log(record):
-    """Append integration delivery records without affecting race flow."""
-    try:
-        with open(INTEGRATION_LOG_FILE, 'a') as f:
-            f.write(json.dumps(record, separators=(',', ':')) + "\n")
-    except Exception as e:
-        logger.warning(f"Error writing integration log: {e}")
-
-def append_pending_integration_event(event, reason):
-    """Persist an event for later retry without blocking the race flow."""
-    try:
-        record = {
-            "queued_at": datetime.now().isoformat(),
-            "reason": reason,
-            "event": event
-        }
-        with open(INTEGRATION_PENDING_FILE, 'a') as f:
-            f.write(json.dumps(record, separators=(',', ':')) + "\n")
-    except Exception as e:
-        logger.warning(f"Error writing pending integration event: {e}")
-
-def load_pending_integration_events():
-    """Load pending partner events from disk."""
-    if not os.path.exists(INTEGRATION_PENDING_FILE):
-        return []
-
-    pending = []
-    try:
-        with open(INTEGRATION_PENDING_FILE, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    record = json.loads(line)
-                    event = record.get("event")
-                    if event:
-                        pending.append(record)
-                except json.JSONDecodeError:
-                    continue
-    except Exception as e:
-        logger.warning(f"Error loading pending integration events: {e}")
-    return pending
-
-def rewrite_pending_integration_events(records):
-    """Replace pending event queue with remaining undelivered records."""
-    try:
-        if not records:
-            if os.path.exists(INTEGRATION_PENDING_FILE):
-                os.remove(INTEGRATION_PENDING_FILE)
-            return
-        with open(INTEGRATION_PENDING_FILE, 'w') as f:
-            for record in records:
-                f.write(json.dumps(record, separators=(',', ':')) + "\n")
-    except Exception as e:
-        logger.warning(f"Error rewriting pending integration events: {e}")
-
-def split_driver_name(driver_name):
-    """Best-effort split for partner payloads while preserving full name."""
-    parts = str(driver_name or '').strip().split()
-    if not parts:
-        return "", "", ""
-    if len(parts) == 1:
-        return parts[0], "", parts[0]
-    return parts[0], " ".join(parts[1:]), " ".join(parts)
-
 def format_lap_time(seconds):
-    """Format seconds as mm:ss.xxx for partner payloads."""
+    """Format seconds as mm:ss.xxx for the browser mirror."""
     try:
         seconds = float(seconds)
     except (TypeError, ValueError):
@@ -199,135 +77,6 @@ def format_lap_time(seconds):
     minutes = int(seconds // 60)
     remaining = seconds % 60
     return f"{minutes:02d}:{remaining:06.3f}"
-
-def build_race_completed_event(lap_data):
-    """Create the stable partner event payload from a saved lap row."""
-    first_name, last_name, full_name = split_driver_name(lap_data.get('driver_name', ''))
-    race_time = float(lap_data.get('lap_time', 0))
-    session_id = str(lap_data.get('session_id') or f"legacy-{uuid.uuid4()}")
-    completed_at = lap_data.get('timestamp') or datetime.now().isoformat()
-
-    return {
-        "event_type": "race.completed",
-        "event_id": str(uuid.uuid4()),
-        "session_id": session_id,
-        "racer": {
-            "first_name": first_name,
-            "last_name": last_name,
-            "full_name": full_name,
-            "email": str(lap_data.get('email', '')),
-            "phone": str(lap_data.get('phone', ''))
-        },
-        "race_time_seconds": race_time,
-        "formatted_race_time": format_lap_time(race_time),
-        "simulator_id": str(lap_data.get('simulator_id', '')),
-        "completed_at": completed_at,
-        "demo_url": integration_config.get("demo_url", "")
-    }
-
-def sign_integration_payload(payload_body, secret):
-    """Return an HMAC signature for partner webhook verification."""
-    return hmac.new(
-        secret.encode('utf-8'),
-        payload_body.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-
-def attempt_integration_delivery(event):
-    """Attempt partner delivery once and return a delivery record."""
-    config = load_integration_config()
-    record = {
-        "event_id": event.get("event_id"),
-        "event_type": event.get("event_type"),
-        "created_at": datetime.now().isoformat(),
-        "enabled": bool(config.get("enabled")),
-        "dry_run": bool(config.get("dry_run")),
-        "delivered": False,
-        "status_code": None,
-        "error": None
-    }
-
-    if not config.get("enabled") or config.get("dry_run"):
-        record["delivered"] = True
-        record["error"] = "dry_run" if config.get("dry_run") else "disabled"
-        return record
-
-    webhook_url = config.get("webhook_url", "").strip()
-    if not webhook_url:
-        record["error"] = "missing_webhook_url"
-        return record
-
-    try:
-        body = json.dumps(event, separators=(',', ':'), sort_keys=True)
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "SimCoaches-Leaderboard-Receiver"
-        }
-        if config.get("api_key"):
-            headers["Authorization"] = f"Bearer {config['api_key']}"
-        if config.get("signing_secret"):
-            headers["X-SimCoaches-Signature"] = sign_integration_payload(body, config["signing_secret"])
-
-        response = requests.post(
-            webhook_url,
-            data=body,
-            headers=headers,
-            timeout=int(config.get("timeout_seconds", 5))
-        )
-        record["status_code"] = response.status_code
-        record["delivered"] = 200 <= response.status_code < 300
-        if not record["delivered"]:
-            record["error"] = response.text[:500]
-    except Exception as e:
-        record["error"] = str(e)
-
-    return record
-
-def deliver_integration_event(event, queue_on_failure=True):
-    """Deliver a partner event; failures are logged and never raised."""
-    record = attempt_integration_delivery(event)
-    if record.get("error") in ("dry_run", "disabled"):
-        append_integration_log({**record, "event": event})
-    else:
-        append_integration_log(record)
-    if queue_on_failure and not record["delivered"]:
-        append_pending_integration_event(event, record["error"] or f"HTTP {record['status_code']}")
-
-def retry_pending_integration_events(limit=25):
-    """Retry pending partner events and keep failures queued."""
-    pending = load_pending_integration_events()
-    if not pending:
-        return {"attempted": 0, "delivered": 0, "remaining": 0}
-
-    attempted = 0
-    delivered = 0
-    remaining = []
-
-    for record in pending:
-        if attempted >= limit:
-            remaining.append(record)
-            continue
-
-        event = record.get("event")
-        if not event:
-            continue
-
-        attempted += 1
-        delivery_record = attempt_integration_delivery(event)
-        append_integration_log(delivery_record)
-        if delivery_record["delivered"]:
-            delivered += 1
-        else:
-            record["reason"] = delivery_record["error"] or f"HTTP {delivery_record['status_code']}"
-            remaining.append(record)
-
-    rewrite_pending_integration_events(remaining)
-    return {"attempted": attempted, "delivered": delivered, "remaining": len(remaining)}
-
-def emit_integration_event(event):
-    """Send partner work in the background so racing stays responsive."""
-    thread = threading.Thread(target=deliver_integration_event, args=(event,), daemon=True)
-    thread.start()
 
 def normalize_ranking_mode(value):
     """Coerce a ranking mode to 'distance' or 'lap_time' (None -> None)."""
@@ -2875,10 +2624,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_session_started(data)
             elif path == '/api/session/ended':
                 self.handle_session_ended(data)
-            elif path == '/api/integration/test-event':
-                self.handle_integration_test_event(data)
-            elif path == '/api/integration/retry-pending':
-                self.handle_retry_pending_integration_events(data)
             elif path == '/api/laptimes/sync':
                 # Peer sync endpoint - receives lap times from other receivers
                 self.handle_peer_sync(data)
@@ -2989,10 +2734,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 active_session['driver_name'] = driver_name
                 save_queue_data()
 
-        # Vincent's integration needs every accepted lap so their system can
-        # group by session_id and decide how to display or sort results.
-        emit_integration_event(build_race_completed_event(clean_data))
-
         # Broadcast to peer receivers (if peer discovery is enabled)
         global peer_discovery
         if peer_discovery:
@@ -3000,30 +2741,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.end_headers()
-
-    def handle_integration_test_event(self, data):
-        """Emit a sample partner event without touching leaderboard data."""
-        sample = {
-            'simulator_id': str(data.get('simulator_id', '1')),
-            'driver_name': str(data.get('driver_name', 'Test Racer')),
-            'lap_time': float(data.get('lap_time', 83.456)),
-            'email': str(data.get('email', 'test@example.com')),
-            'phone': str(data.get('phone', '+17025550123')),
-            'session_id': str(data.get('session_id', f"test-{uuid.uuid4()}")),
-            'timestamp': datetime.now().isoformat()
-        }
-        event = build_race_completed_event(sample)
-        emit_integration_event(event)
-        self.send_json_response({'success': True, 'event': event})
-
-    def handle_retry_pending_integration_events(self, data):
-        """Retry pending partner webhook deliveries."""
-        try:
-            limit = int(data.get('limit', 25))
-        except (TypeError, ValueError):
-            limit = 25
-        result = retry_pending_integration_events(max(1, min(limit, 100)))
-        self.send_json_response({'success': True, **result})
 
     def handle_queue_join(self, data):
         """Add a guest to the queue"""
@@ -3225,8 +2942,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_get_queue()
             elif path == '/api/queue/stats':
                 self.handle_get_stats()
-            elif path == '/api/integration/config':
-                self.handle_get_integration_config()
             elif path == '/api/leaderboard':
                 self.handle_get_leaderboard()
             elif path == '/api/leaderboard/display-config':
@@ -3320,21 +3035,6 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             self.send_response(500)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-
-    def handle_get_integration_config(self):
-        """Return non-secret partner integration status."""
-        config = load_integration_config()
-        pending_count = len(load_pending_integration_events())
-        self.send_json_response({
-            'success': True,
-            'enabled': bool(config.get('enabled')),
-            'dry_run': bool(config.get('dry_run')),
-            'webhook_configured': bool(config.get('webhook_url')),
-            'api_key_configured': bool(config.get('api_key')),
-            'signing_secret_configured': bool(config.get('signing_secret')),
-            'demo_url': config.get('demo_url', ''),
-            'pending_events': pending_count
-        })
 
     def handle_get_queue(self):
         """Get the full queue with wait time estimates - uses in-memory queue (no disk I/O)"""
@@ -3507,7 +3207,6 @@ class ControlWindow(QMainWindow):
         self.leaderboard_window = None
         self.network_thread = None
         self.ensure_csv_exists()
-        load_integration_config()
         self.load_config()  # This will override defaults if config file exists
         self.setup_ui()
         self.start_network_thread()
@@ -4059,7 +3758,6 @@ class ControlWindow(QMainWindow):
         self.sim_refresh_timer.start(2000)
 
         tabs.addTab(general_tab, "General")
-        tabs.addTab(self.create_partner_integration_tab(), "Partner")
 
         # === APPEARANCE TAB ===
         appearance_tab = QWidget()
@@ -4224,242 +3922,6 @@ class ControlWindow(QMainWindow):
 
         self.update_server_address_display()
 
-    def create_partner_integration_tab(self):
-        """Create the in-person partner webhook setup panel."""
-        config = load_integration_config()
-        tab = QWidget()
-        tab_layout = QVBoxLayout(tab)
-        tab_layout.setContentsMargins(0, 0, 0, 0)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setSpacing(10)
-        layout.setContentsMargins(14, 14, 14, 14)
-
-        description = QLabel(
-            "Vincent's credentials are preloaded. Paste his team's webhook URL and save. "
-            "When the webhook URL is saved, Receiver automatically sends live signed lap events."
-        )
-        description.setWordWrap(True)
-        description.setStyleSheet("color: #cccccc; font-size: 12px;")
-        layout.addWidget(description)
-
-        def make_row(label_text, widget):
-            row = QHBoxLayout()
-            row.setSpacing(8)
-            label = QLabel(label_text)
-            label.setFixedWidth(130)
-            row.addWidget(label)
-            widget.setMinimumHeight(34)
-            row.addWidget(widget, 1)
-            return row
-
-        self.partner_webhook_url = QLineEdit(str(config.get('webhook_url', '')))
-        self.partner_webhook_url.setPlaceholderText("https://partner.example.com/webhooks/simcoaches/race-completed")
-        self.partner_webhook_url.textChanged.connect(lambda _text: self.update_partner_status_summary())
-        layout.addLayout(make_row("Webhook URL:", self.partner_webhook_url))
-
-        self.partner_demo_url = QLineEdit(str(config.get('demo_url', '')))
-        self.partner_demo_url.setPlaceholderText("Optional demo link included in Vincent's payload")
-        layout.addLayout(make_row("Demo URL:", self.partner_demo_url))
-
-        timeout_row = QHBoxLayout()
-        timeout_row.setSpacing(8)
-        timeout_label = QLabel("Timeout:")
-        timeout_label.setFixedWidth(130)
-        timeout_row.addWidget(timeout_label)
-        self.partner_timeout = QLineEdit(str(config.get('timeout_seconds', 5)))
-        self.partner_timeout.setMaxLength(2)
-        self.partner_timeout.setFixedSize(64, 34)
-        timeout_row.addWidget(self.partner_timeout)
-        timeout_row.addWidget(QLabel("seconds"))
-        timeout_row.addStretch()
-        layout.addLayout(timeout_row)
-
-        credential_header = QLabel("Vincent Credentials")
-        credential_header.setStyleSheet("font-weight: bold; color: #007acc; margin-top: 4px;")
-        layout.addWidget(credential_header)
-
-        self.partner_api_key = QLineEdit(str(config.get('api_key', '')))
-        self.partner_api_key.setReadOnly(True)
-        self.partner_api_key.setPlaceholderText("Vincent API key is preloaded")
-        self.partner_api_key.setToolTip("Fixed API key already shared with Vincent's team")
-        layout.addLayout(make_row("API Key:", self.partner_api_key))
-
-        self.partner_signing_secret = QLineEdit(str(config.get('signing_secret', '')))
-        self.partner_signing_secret.setReadOnly(True)
-        self.partner_signing_secret.setPlaceholderText("Vincent signing secret is preloaded")
-        self.partner_signing_secret.setToolTip("Fixed signing secret already shared with Vincent's team")
-        layout.addLayout(make_row("Signing Secret:", self.partner_signing_secret))
-
-        credential_buttons = QHBoxLayout()
-        credential_buttons.setSpacing(8)
-        copy_api_btn = QPushButton("Copy API Key")
-        copy_api_btn.setMinimumHeight(38)
-        copy_api_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_api_key, "API key"))
-        credential_buttons.addWidget(copy_api_btn)
-
-        copy_secret_btn = QPushButton("Copy Signing Secret")
-        copy_secret_btn.setMinimumHeight(38)
-        copy_secret_btn.clicked.connect(lambda: self.copy_partner_value(self.partner_signing_secret, "signing secret"))
-        credential_buttons.addWidget(copy_secret_btn)
-        layout.addLayout(credential_buttons)
-
-        action_row = QHBoxLayout()
-        action_row.setSpacing(8)
-        save_btn = QPushButton("Save Vincent Setup")
-        save_btn.setMinimumHeight(40)
-        save_btn.clicked.connect(lambda: self.save_partner_integration_config("Vincent setup saved."))
-        action_row.addWidget(save_btn)
-
-        test_btn = QPushButton("Send Test Webhook")
-        test_btn.setMinimumHeight(40)
-        test_btn.setToolTip("Sends a signed race.completed test event to Vincent's configured webhook URL")
-        test_btn.clicked.connect(self.send_partner_test_webhook)
-        action_row.addWidget(test_btn)
-        layout.addLayout(action_row)
-
-        self.partner_status_label = QLabel("")
-        self.partner_status_label.setWordWrap(True)
-        self.partner_status_label.setMinimumHeight(108)
-        self.partner_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-        self.partner_status_label.setStyleSheet("""
-            QLabel {
-                background-color: #252526;
-                color: #cccccc;
-                padding: 10px;
-                border: 1px solid #3c3c3c;
-                border-radius: 4px;
-                font-size: 12px;
-            }
-        """)
-        layout.addWidget(self.partner_status_label)
-        self.update_partner_status_summary()
-
-        layout.addStretch()
-        scroll.setWidget(content)
-        tab_layout.addWidget(scroll)
-        return tab
-
-    def update_partner_status_summary(self, extra_message=""):
-        if not hasattr(self, 'partner_status_label'):
-            return
-
-        config = load_integration_config()
-        webhook_url = str(config.get('webhook_url', '')).strip()
-        api_key = str(config.get('api_key', '')).strip()
-        signing_secret = str(config.get('signing_secret', '')).strip()
-
-        if hasattr(self, 'partner_webhook_url'):
-            webhook_url = self.partner_webhook_url.text().strip()
-        if hasattr(self, 'partner_api_key'):
-            api_key = self.partner_api_key.text().strip()
-        if hasattr(self, 'partner_signing_secret'):
-            signing_secret = self.partner_signing_secret.text().strip()
-
-        saved_webhook_url = str(config.get('webhook_url', '')).strip()
-        form_has_unsaved_webhook = webhook_url != saved_webhook_url
-        ready = bool(webhook_url and api_key and signing_secret)
-
-        parts = []
-        if ready and form_has_unsaved_webhook:
-            parts.append("Status: webhook URL entered but not saved yet")
-        elif ready and config.get('enabled') and not config.get('dry_run', False):
-            parts.append("Status: active - live lap webhooks will send")
-        elif ready:
-            parts.append("Status: ready - save to activate live sending")
-        else:
-            parts.append("Status: waiting for Vincent webhook URL")
-        parts.append("Sending: automatic live send when webhook URL is saved")
-        parts.append("Webhook URL: set" if webhook_url else "Webhook URL: missing")
-        parts.append("Vincent API key: set" if api_key else "Vincent API key: missing")
-        parts.append("Vincent signing secret: set" if signing_secret else "Vincent signing secret: missing")
-
-        message = "\n".join(parts)
-        if extra_message:
-            message = f"{extra_message}\n\n{message}"
-        self.partner_status_label.setText(message)
-
-    def save_partner_integration_config(self, status_message=""):
-        try:
-            timeout_seconds = int(self.partner_timeout.text().strip() or "5")
-        except ValueError:
-            QMessageBox.warning(self, "Invalid Timeout", "Timeout must be a number.")
-            return False
-
-        timeout_seconds = max(1, min(timeout_seconds, 30))
-        self.partner_timeout.setText(str(timeout_seconds))
-
-        webhook_url = self.partner_webhook_url.text().strip()
-        api_key = self.partner_api_key.text().strip()
-        signing_secret = self.partner_signing_secret.text().strip()
-        ready = bool(webhook_url and api_key and signing_secret)
-
-        integration_config.update({
-            "enabled": ready,
-            "dry_run": False,
-            "webhook_url": webhook_url,
-            "api_key": api_key,
-            "signing_secret": signing_secret,
-            "timeout_seconds": timeout_seconds,
-            "demo_url": self.partner_demo_url.text().strip(),
-        })
-        save_integration_config()
-        self.update_partner_status_summary(status_message)
-        return True
-
-    def generate_partner_credentials(self):
-        self.partner_api_key.setText(VINCENT_API_KEY)
-        self.partner_signing_secret.setText(VINCENT_SIGNING_SECRET)
-        self.save_partner_integration_config("Restored Vincent's existing credentials.")
-
-    def copy_partner_value(self, field, label):
-        value = field.text().strip()
-        if not value:
-            self.statusBar().showMessage(f"No {label} to copy.", 4000)
-            return
-        QApplication.clipboard().setText(value)
-        self.statusBar().showMessage(f"Copied {label}.", 4000)
-
-    def send_partner_test_webhook(self):
-        if not self.save_partner_integration_config():
-            return
-
-        config = load_integration_config()
-        if not config.get('api_key') or not config.get('signing_secret'):
-            self.update_partner_status_summary("Test not sent: Vincent credentials are missing.")
-            return
-
-        if not config.get('webhook_url'):
-            self.update_partner_status_summary("Test not sent: paste Vincent's webhook URL first.")
-            return
-
-        sample = {
-            'simulator_id': '1',
-            'driver_name': 'Vincent Test Racer',
-            'lap_time': 83.456,
-            'email': 'vincent.test@example.com',
-            'phone': '+17025550123',
-            'session_id': f"in-person-test-{uuid.uuid4()}",
-            'timestamp': datetime.now().isoformat()
-        }
-        event = build_race_completed_event(sample)
-        record = attempt_integration_delivery(event)
-        append_integration_log({**record, "event": event})
-
-        if record.get('delivered'):
-            self.update_partner_status_summary(f"Test delivered: Vincent's endpoint returned HTTP {record.get('status_code')}.")
-        else:
-            status = record.get('status_code')
-            error = record.get('error') or "unknown error"
-            prefix = f"HTTP {status}" if status else "connection failed"
-            self.update_partner_status_summary(f"Test failed: {prefix}. {error}")
-    
     def create_leaderboard_window(self):
         if self.leaderboard_window is None:
             # Create as a separate window without parent
@@ -4726,14 +4188,7 @@ class ControlWindow(QMainWindow):
         self.update_server_address_display()
         self.update_mirror_url_display()
 
-        partner_saved = True
-        if hasattr(self, 'partner_webhook_url'):
-            partner_saved = self.save_partner_integration_config("Vincent setup saved.")
-
-        if partner_saved:
-            self.statusBar().showMessage("Settings saved successfully")
-        else:
-            self.statusBar().showMessage("Settings saved, but Vincent setup needs attention")
+        self.statusBar().showMessage("Settings saved successfully")
 
     def update_server_address_display(self):
         """Show the receiver address for manual sender setup."""
