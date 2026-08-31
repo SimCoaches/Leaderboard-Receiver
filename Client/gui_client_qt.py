@@ -72,7 +72,9 @@ DISPLAY_CONFIG_DEFAULTS = {
     'horizontal_offset_v': 0,
     'vertical_offset_v': 0,
     'orientation': 'horizontal',
-    'vertical_row_height': 123
+    'vertical_row_height': 123,
+    # Browser mirror needs this to match the desktop board's columns and size
+    'ranking_mode': 'lap_time'
 }
 integration_config = {
     "enabled": False,
@@ -326,8 +328,19 @@ def emit_integration_event(event):
     thread = threading.Thread(target=deliver_integration_event, args=(event,), daemon=True)
     thread.start()
 
-def read_leaderboard_entries(limit=10):
-    """Read fastest lap per driver from the existing CSV store."""
+def read_leaderboard_entries(limit=None):
+    """Read the best run per driver from the CSV store for browser mirrors.
+
+    Mirrors the desktop board's rules so both displays always agree:
+      - lap_time mode  : fastest lap wins, top 10
+      - distance mode  : furthest distance wins (elapsed time breaks ties),
+                         13 entries (podium + positions 4-13)
+    """
+    ranking_mode = load_display_config_for_mirror().get('ranking_mode', 'lap_time')
+    distance_mode = ranking_mode == 'distance'
+    if limit is None:
+        limit = 13 if distance_mode else 10
+
     lap_times = {}
     csv_file = 'lap_times.csv'
     if not os.path.exists(csv_file):
@@ -342,12 +355,24 @@ def read_leaderboard_entries(limit=10):
                     if not driver_name:
                         continue
                     lap_time = float(row.get('lap_time', 0))
-                    if driver_name not in lap_times or lap_time < lap_times[driver_name]['lap_time']:
+                    distance_pct = parse_distance_pct(row.get('distance_pct'))
+
+                    best = lap_times.get(driver_name)
+                    if distance_mode:
+                        is_better = (best is None or
+                                     distance_pct > best['distance_pct'] or
+                                     (distance_pct == best['distance_pct'] and
+                                      lap_time < best['lap_time']))
+                    else:
+                        is_better = best is None or lap_time < best['lap_time']
+
+                    if is_better:
                         lap_times[driver_name] = {
                             'simulator_id': str(row.get('simulator_id', '')),
                             'driver_name': driver_name,
                             'lap_time': lap_time,
                             'formatted_lap_time': format_lap_time(lap_time),
+                            'distance_pct': distance_pct,
                             'email': str(row.get('email', '')),
                             'phone': str(row.get('phone', '')),
                             'timestamp': str(row.get('timestamp', ''))
@@ -358,7 +383,11 @@ def read_leaderboard_entries(limit=10):
         logger.warning(f"Error reading leaderboard entries: {e}")
         return []
 
-    return sorted(lap_times.values(), key=lambda x: x['lap_time'])[:limit]
+    if distance_mode:
+        ordered = sorted(lap_times.values(), key=lambda x: (-x['distance_pct'], x['lap_time']))
+    else:
+        ordered = sorted(lap_times.values(), key=lambda x: x['lap_time'])
+    return ordered[:limit]
 
 def load_display_config_for_mirror():
     """Load non-secret display settings used by the browser leaderboard mirror."""
@@ -418,6 +447,7 @@ LEADERBOARD_HTML_CONTENT = r"""
             --position-col: 100px;
             --driver-col: 484px;
             --time-col: 180px;
+            --distance-col: 120px;
             --column-gap: 20px;
             --content-padding: 30px;
         }
@@ -472,6 +502,12 @@ LEADERBOARD_HTML_CONTENT = r"""
             justify-content: start;
             padding: 0 var(--content-padding);
         }
+        /* Distance (sector challenge) mode: Position | Driver | Distance | Time,
+           matching the desktop board's 100/364/120/180 columns */
+        .distance-mode .header,
+        .distance-mode .row {
+            grid-template-columns: var(--position-col) 364px var(--distance-col) var(--time-col);
+        }
         .header {
             height: var(--row-height);
             background-color: rgba(50, 50, 50, calc(var(--header-opacity) / 255));
@@ -519,11 +555,32 @@ LEADERBOARD_HTML_CONTENT = r"""
             overflow: hidden;
             white-space: nowrap;
         }
+        .distance {
+            color: #b0b0b0;
+            font-size: var(--entry-font-size);
+            font-weight: 400;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
+        }
         .pos-1,
         .pos-2,
         .pos-3 {
             background-color: rgba(255, 255, 255, 0.03);
         }
+        /* Divide the podium block from the rest of the field, like the desktop board */
+        .distance-mode .pos-4 {
+            border-top: 2px solid rgba(255, 255, 255, 0.27);
+        }
+        .pos-1 .distance,
+        .pos-2 .distance,
+        .pos-3 .distance {
+            font-weight: 700;
+        }
+        .pos-1 .distance { color: #d4af37; }
+        .pos-2 .distance { color: #a8a9ad; }
+        .pos-3 .distance { color: #cd7f32; }
         .pos-1 {
             border-bottom-color: rgba(255, 255, 255, 0.06);
         }
@@ -601,7 +658,7 @@ LEADERBOARD_HTML_CONTENT = r"""
     <div class="viewport">
         <main class="stage" id="stage">
             <section class="board" id="board">
-                <div class="header">
+                <div class="header" id="header">
                     <div>Position</div>
                     <div>Driver</div>
                     <div style="text-align:center;">Time</div>
@@ -639,7 +696,8 @@ LEADERBOARD_HTML_CONTENT = r"""
             const vertical = displayConfig.orientation === 'vertical';
             const rowHeight = vertical ? asNumber(displayConfig.vertical_row_height, 123) : 60;
             const boardWidth = vertical ? 864 : asNumber(displayConfig.panel_width, 1200);
-            const boardHeight = vertical ? rowHeight * 11 : 660;
+            // Distance (sector challenge) mode shows a 13-entry board; header + entries
+            const boardHeight = rowHeight * (1 + maxEntries());
             const offsetX = vertical
                 ? asNumber(displayConfig.horizontal_offset_v, 0)
                 : asNumber(displayConfig.horizontal_offset_h, 0);
@@ -659,6 +717,10 @@ LEADERBOARD_HTML_CONTENT = r"""
             const entryFontSize = asNumber(displayConfig.other_font_size, asNumber(displayConfig.entry_font_size, 30));
             document.documentElement.style.setProperty('--entry-font-size', `${entryFontSize}px`);
             document.documentElement.style.setProperty('--podium-position-font-size', `${entryFontSize + 2}px`);
+
+            // Columns and header follow the ranking mode, like the desktop board
+            document.body.classList.toggle('distance-mode', isDistanceMode());
+            renderHeader();
 
             if (displayConfig.has_background) {
                 stage.style.backgroundImage = `url('/leaderboard-background?v=${displayConfig.background_version || 0}')`;
@@ -691,12 +753,41 @@ LEADERBOARD_HTML_CONTENT = r"""
                     entriesContainer.replaceChildren(makeEmpty('Waiting for lap times...'));
                     return;
                 }
-                entriesContainer.replaceChildren(...entries.slice(0, 10).map(makeRow));
+                entriesContainer.replaceChildren(...entries.slice(0, maxEntries()).map(makeRow));
             } catch (error) {
                 console.error(error);
                 document.body.classList.add('offline');
                 entriesContainer.replaceChildren(makeEmpty('Mirror connection lost'));
             }
+        }
+
+        function isDistanceMode() {
+            return String(displayConfig.ranking_mode || 'lap_time') === 'distance';
+        }
+
+        function maxEntries() {
+            // Distance mode: podium (top 3) + positions 4-13
+            return isDistanceMode() ? 13 : 10;
+        }
+
+        function renderHeader() {
+            const headerEl = document.getElementById('header');
+            if (!headerEl) { return; }
+            const titles = isDistanceMode()
+                ? ['Position', 'Driver', 'Distance', 'Time']
+                : ['Position', 'Driver', 'Time'];
+            headerEl.replaceChildren(...titles.map(function (title) {
+                const cell = document.createElement('div');
+                cell.style.textAlign = 'center';
+                cell.textContent = title;
+                return cell;
+            }));
+        }
+
+        function formatDistance(value) {
+            const pct = asNumber(value, 100);
+            // >= 99.95 rounds to 100.0 at one decimal - show as a finished run
+            return pct >= 99.95 ? '100%' : `${pct.toFixed(1)}%`;
         }
 
         function makeRow(entry, index) {
@@ -715,7 +806,14 @@ LEADERBOARD_HTML_CONTENT = r"""
             time.className = 'time';
             time.textContent = entry.formatted_lap_time || formatTime(entry.lap_time);
 
-            row.append(position, driver, time);
+            if (isDistanceMode()) {
+                const distance = document.createElement('div');
+                distance.className = 'distance';
+                distance.textContent = formatDistance(entry.distance_pct);
+                row.append(position, driver, distance, time);
+            } else {
+                row.append(position, driver, time);
+            }
             return row;
         }
 

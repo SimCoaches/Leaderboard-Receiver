@@ -32,6 +32,13 @@ This is a PyQt6 desktop application for sim racing leaderboards. The entire appl
 
 **NetworkThread** - QThread that monitors `lap_times.csv` for changes and emits signals to update the leaderboard UI.
 
+**Browser mirror** (`/leaderboard`, backed by `/api/leaderboard` and
+`read_leaderboard_entries`) - read-only web copy of the board for phones/extra
+screens. It follows the same ranking rules as the desktop window: in distance
+mode it picks each driver's furthest run (elapsed time breaks ties), shows 13
+entries with the Distance column and podium divider, and sizes the board for
+14 rows. `ranking_mode` reaches it through the mirror display config.
+
 **LapTimeHandler** - HTTP request handler for the built-in server. Key endpoints:
 - `/api/queue/join`, `/api/queue/remove`, `/api/queue/assign` - Queue management
 - `/api/session/started`, `/api/session/ended` - Session tracking
