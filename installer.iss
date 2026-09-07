@@ -1,6 +1,6 @@
 [Setup]
 AppName=Lap Time Receiver
-AppVersion=1.0
+AppVersion=1.2.1
 AppPublisher=SimRacing Leaderboard
 AppPublisherURL=https://github.com
 DefaultDirName={autopf}\Lap Time Receiver
@@ -25,8 +25,7 @@ WizardSmallImageFile=
 Source: "Client\dist\Lap Time Receiver.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Configuration files
-Source: "Client\config.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "config.json"; DestDir: "{app}"; DestName: "root_config.json"; Flags: ignoreversion
+Source: "Client\config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist
 
 ; Data files
 Source: "lap_times.csv"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
@@ -61,7 +60,7 @@ begin
   if CurStep = ssPostInstall then begin
     // Create empty lap_times.csv if it doesn't exist
     if not FileExists(ExpandConstant('{app}\lap_times.csv')) then begin
-      SaveStringToFile(ExpandConstant('{app}\lap_times.csv'), 'simulator_id,driver_name,lap_time,email,phone,timestamp' + #13#10, False);
+      SaveStringToFile(ExpandConstant('{app}\lap_times.csv'), 'simulator_id,driver_name,lap_time,email,phone,session_id,timestamp,distance_pct,survey_answers' + #13#10, False);
     end;
     
     // Create default config.json if it doesn't exist

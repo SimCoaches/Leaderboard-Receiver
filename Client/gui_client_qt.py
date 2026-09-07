@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QTabWidget, QFileDialog, QMessageBox, QGridLayout,
                             QFrame, QScrollArea, QSizePolicy, QComboBox)
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QImage, QCursor, QIcon
+from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -49,7 +49,10 @@ queue_data = {
 QUEUE_FILE = "queue.json"
 MAX_SESSION_HISTORY = 50
 
-LAP_CSV_FIELDS = ['simulator_id', 'driver_name', 'lap_time', 'email', 'phone', 'timestamp', 'distance_pct']
+LAP_CSV_FIELDS = [
+    'simulator_id', 'driver_name', 'lap_time', 'email', 'phone',
+    'session_id', 'timestamp', 'distance_pct', 'survey_answers'
+]
 DISPLAY_CONFIG_FILE = "config.json"
 DISPLAY_CONFIG_DEFAULTS = {
     'opacity': 220,
@@ -1307,8 +1310,50 @@ def parse_distance_pct(value):
     return max(0.0, min(100.0, pct))
 
 
+def normalize_survey_answers(value):
+    """Return survey answers as a string-to-string dictionary."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(question): str(answer)
+        for question, answer in value.items()
+        if str(question).strip() and str(answer).strip()
+    }
+
+
+def serialize_survey_answers(value):
+    """Store survey answers in one stable JSON CSV field."""
+    return json.dumps(normalize_survey_answers(value), separators=(',', ':'), sort_keys=True)
+
+
+def lap_dedupe_key(lap):
+    """Build the retry-safe identity for a lap row or incoming payload.
+
+    Current Senders identify a result by session_id + lap_time. Older rows
+    without a session ID retain the legacy driver + time + timestamp key.
+    """
+    session_id = str(lap.get('session_id', '') or '').strip()
+    try:
+        lap_time = f"{float(lap.get('lap_time', 0)):.3f}"
+    except (TypeError, ValueError):
+        lap_time = str(lap.get('lap_time', ''))
+    if session_id:
+        return ('session', session_id, lap_time)
+    return (
+        'legacy',
+        str(lap.get('driver_name', '')),
+        lap_time,
+        str(lap.get('timestamp', '')),
+    )
+
+
 def migrate_lap_times_csv(csv_file='lap_times.csv'):
-    """Migrate older lap CSV layouts to the current phone + distance schema."""
+    """Migrate older lap CSV layouts to the complete event-result schema."""
     if not os.path.exists(csv_file):
         return
     try:
@@ -1329,8 +1374,10 @@ def migrate_lap_times_csv(csv_file='lap_times.csv'):
                     'lap_time': str(row.get('lap_time', '')),
                     'email': str(row.get('email', '')),
                     'phone': str(row.get('phone', '')),
+                    'session_id': str(row.get('session_id', '')),
                     'timestamp': str(row.get('timestamp', '')),
-                    'distance_pct': str(parse_distance_pct(row.get('distance_pct')))
+                    'distance_pct': str(parse_distance_pct(row.get('distance_pct'))),
+                    'survey_answers': serialize_survey_answers(row.get('survey_answers', ''))
                 })
         print(f"Migrated {csv_file} to the current lap schema ({len(rows)} rows)")
     except Exception as e:
@@ -1340,7 +1387,8 @@ def migrate_lap_times_csv(csv_file='lap_times.csv'):
 def merge_peer_lap_times(peer_lap_times):
     """Merge lap times from peers into the local CSV, avoiding duplicates.
 
-    Duplicates are identified by: driver_name + lap_time + timestamp
+    Current rows are deduplicated by session_id + lap_time. Legacy rows use
+    driver_name + lap_time + timestamp.
     Returns the number of new lap times added.
     """
     csv_file = 'lap_times.csv'
@@ -1353,12 +1401,7 @@ def merge_peer_lap_times(peer_lap_times):
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Create unique key for deduplication
-                    key = (
-                        str(row.get('driver_name', '')),
-                        str(row.get('lap_time', '')),
-                        str(row.get('timestamp', ''))
-                    )
-                    existing.add(key)
+                    existing.add(lap_dedupe_key(row))
         except Exception as e:
             print(f"[PEER] Error reading existing lap times: {e}")
 
@@ -1373,11 +1416,7 @@ def merge_peer_lap_times(peer_lap_times):
             writer.writeheader()
 
         for lap in peer_lap_times:
-            key = (
-                str(lap.get('driver_name', '')),
-                str(lap.get('lap_time', '')),
-                str(lap.get('timestamp', ''))
-            )
+            key = lap_dedupe_key(lap)
             if key not in existing:
                 writer.writerow({
                     'simulator_id': str(lap.get('simulator_id', '1')),
@@ -1385,8 +1424,10 @@ def merge_peer_lap_times(peer_lap_times):
                     'lap_time': str(lap.get('lap_time', '')),
                     'email': str(lap.get('email', '')),
                     'phone': str(lap.get('phone', '')),
+                    'session_id': str(lap.get('session_id', '')),
                     'timestamp': str(lap.get('timestamp', '')),
-                    'distance_pct': str(parse_distance_pct(lap.get('distance_pct')))
+                    'distance_pct': str(parse_distance_pct(lap.get('distance_pct'))),
+                    'survey_answers': serialize_survey_answers(lap.get('survey_answers', ''))
                 })
                 existing.add(key)
                 new_count += 1
@@ -1394,8 +1435,8 @@ def merge_peer_lap_times(peer_lap_times):
     return new_count
 
 
-def is_duplicate_lap_time(driver_name, lap_time, timestamp):
-    """Check if a lap time already exists in the CSV"""
+def is_duplicate_lap_time(driver_name, lap_time, timestamp='', session_id=''):
+    """Check whether this result already exists in the CSV."""
     csv_file = 'lap_times.csv'
     if not os.path.exists(csv_file):
         return False
@@ -1403,10 +1444,14 @@ def is_duplicate_lap_time(driver_name, lap_time, timestamp):
     try:
         with open(csv_file, 'r', newline='') as f:
             reader = csv.DictReader(f)
+            candidate = lap_dedupe_key({
+                'driver_name': driver_name,
+                'lap_time': lap_time,
+                'timestamp': timestamp,
+                'session_id': session_id,
+            })
             for row in reader:
-                if (str(row.get('driver_name', '')) == str(driver_name) and
-                    str(row.get('lap_time', '')) == str(lap_time) and
-                    str(row.get('timestamp', '')) == str(timestamp)):
+                if lap_dedupe_key(row) == candidate:
                     return True
     except Exception as e:
         print(f"[PEER] Error checking for duplicate: {e}")
@@ -1638,10 +1683,38 @@ class LeaderboardWindow(QWidget):
 
     def _column_layout(self):
         """Headers and fixed column widths for the current ranking mode.
-        Both modes total 764px so panel geometry is unchanged."""
+        Distance mode has one extra 20px layout gap, so its columns total
+        744px. With 60px margins and three gaps, the full layout is exactly
+        864px wide and the DISTANCE header cannot be clipped by the panel."""
         if self._ranking_mode() == 'distance':
-            return ['Position', 'Driver', 'Distance', 'Time'], [100, 364, 120, 180]
-        return ['Position', 'Driver', 'Time'], [100, 484, 180]
+            return ['POS', 'DRIVER', 'DISTANCE', 'TIME'], [80, 304, 170, 190]
+        return ['POS', 'DRIVER', 'TIME'], [100, 484, 180]
+
+    def _fit_header_text(self):
+        """Keep every header fully visible, even with a large configured font."""
+        if not hasattr(self, 'header_widget'):
+            return
+
+        _, widths = self._column_layout()
+        base_size = max(12, int(self.config.get('header_font_size', 30)))
+        header_layout = self.header_widget.layout()
+        header_labels = []
+        for index in range(header_layout.count()):
+            widget = header_layout.itemAt(index).widget()
+            if isinstance(widget, QLabel):
+                header_labels.append(widget)
+
+        for label, width in zip(header_labels, widths):
+            available_width = max(1, width - 12)
+            fitted_size = base_size
+            test_font = QFont(label.font())
+            test_font.setWeight(QFont.Weight.Bold)
+            while fitted_size > 12:
+                test_font.setPixelSize(fitted_size)
+                if QFontMetrics(test_font).horizontalAdvance(label.text()) <= available_width:
+                    break
+                fitted_size -= 1
+            label.setStyleSheet(f"font-size: {fitted_size}px;")
 
     def _apply_panel_size(self):
         """Size the panel for the current orientation and ranking mode"""
@@ -1675,6 +1748,7 @@ class LeaderboardWindow(QWidget):
             label.setFixedWidth(width)
             label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
             header_layout.addWidget(label)
+        self._fit_header_text()
         # Entry widgets have the old column count; recreate them on the next update
         for widget in self.entry_widgets:
             self.entries_layout.removeWidget(widget)
@@ -1764,6 +1838,7 @@ class LeaderboardWindow(QWidget):
             label.setFixedWidth(width)
             label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
             header_layout.addWidget(label)
+        self._fit_header_text()
         # Track which mode the columns were built for so a runtime switch rebuilds them
         self._built_ranking_mode = self._ranking_mode()
 
@@ -2357,6 +2432,7 @@ class LeaderboardWindow(QWidget):
         header_labels = self.header_widget.findChildren(QLabel)
         for label, width in zip(header_labels, widths):
             label.setFixedWidth(width)
+        self._fit_header_text()
 
         # Update entry widths
         for entry_widget in self.entry_widgets:
@@ -2467,6 +2543,7 @@ class LeaderboardWindow(QWidget):
                 padding: 10px 0px;
             }}
         """)
+        self._fit_header_text()
         
         # Update entries widget font size
         entry_font_size = self.config.get('entry_font_size', 30)
@@ -2663,6 +2740,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             driver_email = str(lap_data.get('email', ''))
             driver_phone = str(lap_data.get('phone', ''))
             session_id = str(lap_data.get('session_id', ''))
+            survey_answers = normalize_survey_answers(lap_data.get('survey_answers'))
         except (ValueError, TypeError):
             print(f"Invalid data format: {lap_data}")
             self.send_response(400)
@@ -2691,8 +2769,16 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'phone': driver_phone,
             'session_id': session_id,
             'timestamp': datetime.now().isoformat(),
-            'distance_pct': distance_pct
+            'distance_pct': distance_pct,
+            'survey_answers': survey_answers,
         }
+
+        # Sender retries use the same session_id and lap_time. A 200 duplicate
+        # response lets the Sender clear its retry without adding another row.
+        if session_id and is_duplicate_lap_time(
+                driver_name, lap_time, session_id=session_id):
+            self.send_json_response({'success': True, 'status': 'duplicate'})
+            return
 
         # Track connected simulator
         connected_simulators[simulator_id] = {
@@ -2717,8 +2803,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 'lap_time': clean_data['lap_time'],
                 'email': clean_data['email'],
                 'phone': clean_data['phone'],
+                'session_id': clean_data['session_id'],
                 'timestamp': clean_data['timestamp'],
-                'distance_pct': clean_data['distance_pct']
+                'distance_pct': clean_data['distance_pct'],
+                'survey_answers': serialize_survey_answers(clean_data['survey_answers'])
             })
 
         print(f"Successfully wrote data: {clean_data}")
@@ -2732,6 +2820,7 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 active_session['phone'] = driver_phone
                 active_session['session_id'] = session_id
                 active_session['driver_name'] = driver_name
+                active_session['survey_answers'] = survey_answers
                 save_queue_data()
 
         # Broadcast to peer receivers (if peer discovery is enabled)
@@ -3106,8 +3195,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                             'lap_time': str(row.get('lap_time', '')),
                             'email': str(row.get('email', '')),
                             'phone': str(row.get('phone', '')),
+                            'session_id': str(row.get('session_id', '')),
                             'timestamp': str(row.get('timestamp', '')),
-                            'distance_pct': str(parse_distance_pct(row.get('distance_pct')))
+                            'distance_pct': str(parse_distance_pct(row.get('distance_pct'))),
+                            'survey_answers': normalize_survey_answers(row.get('survey_answers', ''))
                         })
             except Exception as e:
                 print(f"[PEER] Error reading lap times: {e}")
@@ -3134,10 +3225,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         simulator_id = str(data.get('simulator_id', '1'))
         email = str(data.get('email', ''))
         phone = str(data.get('phone', ''))
+        session_id = str(data.get('session_id', ''))
         distance_pct = parse_distance_pct(data.get('distance_pct'))
+        survey_answers = normalize_survey_answers(data.get('survey_answers'))
 
         # Check for duplicate
-        if is_duplicate_lap_time(driver_name, lap_time, timestamp):
+        if is_duplicate_lap_time(driver_name, lap_time, timestamp, session_id):
             print(f"[PEER] Duplicate lap time from {self.client_address[0]}, skipping")
             self.send_json_response({'success': True, 'status': 'duplicate'})
             return
@@ -3153,8 +3246,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'lap_time': lap_time,
             'email': email,
             'phone': phone,
+            'session_id': session_id,
             'timestamp': timestamp,
-            'distance_pct': distance_pct
+            'distance_pct': distance_pct,
+            'survey_answers': serialize_survey_answers(survey_answers),
         }
 
         with open(csv_file, 'a', newline='') as f:
