@@ -5,9 +5,11 @@ import sys
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
@@ -75,6 +77,28 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertEqual(99.5, board[0]['distance_pct'])
         self.assertLess(board[0]['lap_time'], board[1]['lap_time'])
         self.assertEqual(len(board), len({row['driver_name'] for row in board}))
+
+    def test_lap_time_board_is_top_10(self):
+        rows = []
+        for index in range(12):
+            rows.append({
+                'simulator_id': '1',
+                'driver_name': f'Driver {index:02d}',
+                'lap_time': str(80 + index),
+                'email': '',
+                'phone': '',
+                'session_id': f'lap-session-{index}',
+                'timestamp': f'2026-09-07T11:00:{index:02d}',
+                'distance_pct': '100',
+                'survey_answers': '{}',
+            })
+        self.write_rows(rows)
+
+        board = receiver.read_leaderboard_entries(ranking_mode='lap_time')
+
+        self.assertEqual(10, len(board))
+        self.assertEqual('Driver 00', board[0]['driver_name'])
+        self.assertEqual('Driver 09', board[-1]['driver_name'])
 
     def test_old_csv_migrates_without_losing_distance(self):
         with open('lap_times.csv', 'w', newline='', encoding='utf-8') as handle:
@@ -160,7 +184,9 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
                 for index in range(window.header_widget.layout().count())
             ]
             self.assertEqual(['POS', 'DRIVER', 'DISTANCE', 'TIME'], headers)
-            self.assertEqual(864, sum(widths) + 60 + (3 * 20))
+            self.assertEqual(1728, sum(widths) + 120 + (3 * 40))
+            self.assertEqual(1728, window.leaderboard_panel.width())
+            self.assertEqual(3136, window.leaderboard_panel.height())
             for label, width in zip(labels, widths):
                 self.assertIsInstance(label, QLabel)
                 self.assertLessEqual(
@@ -170,6 +196,76 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         finally:
             window.close()
             app.processEvents()
+
+    def test_vertical_board_scales_for_windows_200_percent(self):
+        app = QApplication.instance() or QApplication([])
+        config = dict(receiver.DISPLAY_CONFIG_DEFAULTS)
+        window = receiver.LeaderboardWindow(config)
+        try:
+            window._vertical_canvas_scale = lambda: 0.5
+            window.update_column_widths()
+            headers, widths = window._column_layout()
+            self.assertEqual(['POS', 'DRIVER', 'DISTANCE', 'TIME'], headers)
+            self.assertEqual(864, sum(widths) + 60 + (3 * 20))
+            self.assertEqual(864, window.leaderboard_panel.width())
+            self.assertEqual(1568, window.leaderboard_panel.height())
+            self.assertEqual(34, window._logical_offset(68))
+        finally:
+            window.close()
+            app.processEvents()
+
+    def test_browser_settings_editor_updates_only_valid_display_fields(self):
+        config_path = str(Path(self.temp_dir.name) / 'config.json')
+        with open(config_path, 'w', encoding='utf-8') as handle:
+            json.dump({'server_port': 5432, 'vertical_panel_width': 1728}, handle)
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), receiver.LapTimeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        base_url = f'http://127.0.0.1:{server.server_port}'
+
+        with mock.patch.object(receiver, 'get_config_path', return_value=config_path):
+            thread.start()
+            try:
+                with urllib.request.urlopen(f'{base_url}/leaderboard/settings', timeout=5) as response:
+                    settings_html = response.read().decode('utf-8')
+
+                payload = {'vertical_panel_width': 1600, 'vertical_row_height': 210}
+                request = urllib.request.Request(
+                    f'{base_url}/api/leaderboard/display-config',
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST',
+                )
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    saved = json.load(response)
+
+                invalid_request = urllib.request.Request(
+                    f'{base_url}/api/leaderboard/display-config',
+                    data=json.dumps({'vertical_panel_width': 4000}).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST',
+                )
+                with self.assertRaises(urllib.error.HTTPError) as raised:
+                    urllib.request.urlopen(invalid_request, timeout=5)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+        self.assertIn('Leaderboard Display Settings', settings_html)
+        self.assertEqual(1600, saved['config']['vertical_panel_width'])
+        self.assertEqual(210, saved['config']['vertical_row_height'])
+        self.assertEqual(400, raised.exception.code)
+        with open(config_path, encoding='utf-8') as handle:
+            persisted = json.load(handle)
+        self.assertEqual(5432, persisted['server_port'])
+        self.assertEqual(1600, persisted['vertical_panel_width'])
+
+    def test_browser_board_uses_4k_portrait_design_canvas(self):
+        html = receiver.LEADERBOARD_HTML_CONTENT
+        self.assertIn('const baseWidth = vertical ? 2160 : 1920;', html)
+        self.assertIn('const baseHeight = vertical ? 3840 : 1080;', html)
+        self.assertIn('displayConfig.vertical_panel_width, 1728', html)
 
 
 if __name__ == '__main__':

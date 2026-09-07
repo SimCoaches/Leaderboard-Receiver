@@ -15,9 +15,20 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 ```
 
 ## Quick Start
-1. Double-click `start_leaderboard.bat`
-2. The leaderboard will appear and start listening for lap times
-3. Use the LapTimeSender application on other PCs to submit lap times
+1. Install and open Lap Time Receiver.
+2. Start the Receiver server.
+3. Use the Lap Time Sender application on the simulator PCs to submit results.
+
+## Nurburgring 4K Portrait Display
+
+- The sector challenge defaults to a `2160 x 3840` portrait canvas.
+- The leaderboard is `1728 x 3136`: one 224-pixel header plus 13 result rows.
+- Distance mode ranks the furthest distance first and uses the faster elapsed time to break an equal-distance tie.
+- Lap-time mode remains a fastest-lap top 10.
+- Use **Copy Challenge URL** to open `/leaderboard?mode=distance` on the display computer.
+- Use **Copy Display Settings URL** to open `/leaderboard/settings` from a device on the same network. This editor changes the board width, row height, position, text sizes, opacity, and background-fill behavior without editing HTML.
+
+The browser display scales the full template to the available screen while preserving its proportions. The desktop display also compensates for Windows 150% and 200% display scaling.
 
 ## Network Setup
 1. On the leaderboard PC:
@@ -39,6 +50,5 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
   ```
 
 ## Troubleshooting
-- If nothing appears, make sure Python is installed and in your system PATH
 - The server runs on port 5000 - make sure this port is available
-- To close everything, press any key in the command window that opened 
+- If another device cannot open the leaderboard URL, confirm it is on the same network and allow the Receiver through Windows Firewall.

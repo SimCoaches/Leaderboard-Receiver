@@ -60,17 +60,92 @@ DISPLAY_CONFIG_DEFAULTS = {
     'entry_font_size': 30,
     'other_font_size': 30,
     'background_image': '',
-    'fill_screen': False,
+    'fill_screen': True,
     'panel_width': 1200,
+    # Physical design pixels for the 2160x3840 portrait template. The browser
+    # mirror scales the complete canvas to any actual display resolution.
+    'vertical_panel_width': 1728,
     'horizontal_offset_h': 0,
     'vertical_offset_h': 0,
     'horizontal_offset_v': 0,
-    'vertical_offset_v': 0,
-    'orientation': 'horizontal',
-    'vertical_row_height': 123,
+    'vertical_offset_v': 68,
+    'orientation': 'vertical',
+    'vertical_row_height': 224,
     # Browser mirror needs this to match the desktop board's columns and size
-    'ranking_mode': 'lap_time'
+    'ranking_mode': 'distance',
+    'display_layout_version': 2,
 }
+DISPLAY_CONFIG_LOCK = threading.Lock()
+DISPLAY_CONFIG_NUMBER_LIMITS = {
+    'opacity': (0, 255),
+    'header_font_size': (12, 72),
+    'entry_font_size': (12, 72),
+    'other_font_size': (12, 72),
+    'p1_font_size': (12, 84),
+    'p2_font_size': (12, 84),
+    'p3_font_size': (12, 84),
+    'panel_width': (480, 1920),
+    'vertical_panel_width': (600, 2160),
+    'vertical_row_height': (60, 260),
+    'horizontal_offset_h': (-1920, 1920),
+    'vertical_offset_h': (-1080, 1080),
+    'horizontal_offset_v': (-2160, 2160),
+    'vertical_offset_v': (-3840, 3840),
+}
+
+
+def validate_display_config_updates(updates):
+    """Return a strictly validated, non-secret display-config update."""
+    if not isinstance(updates, dict):
+        raise ValueError('Settings must be a JSON object.')
+    clean = {}
+    for key, value in updates.items():
+        if key in DISPLAY_CONFIG_NUMBER_LIMITS:
+            minimum, maximum = DISPLAY_CONFIG_NUMBER_LIMITS[key]
+            try:
+                number = int(value)
+            except (TypeError, ValueError):
+                raise ValueError(f'{key} must be a whole number.')
+            if not minimum <= number <= maximum:
+                raise ValueError(f'{key} must be between {minimum} and {maximum}.')
+            clean[key] = number
+        elif key == 'fill_screen':
+            clean[key] = bool(value)
+        elif key == 'orientation':
+            orientation = str(value).lower()
+            if orientation not in ('horizontal', 'vertical'):
+                raise ValueError('orientation must be horizontal or vertical.')
+            clean[key] = orientation
+        elif key == 'ranking_mode':
+            mode = normalize_ranking_mode(value)
+            if mode is None:
+                raise ValueError('ranking_mode must be distance or lap_time.')
+            clean[key] = mode
+        else:
+            raise ValueError(f'Unsupported display setting: {key}')
+    return clean
+
+
+def save_display_config_updates(updates):
+    """Merge browser-editor values into the Receiver's existing config file."""
+    clean = validate_display_config_updates(updates)
+    config_path = get_config_path()
+    with DISPLAY_CONFIG_LOCK:
+        existing = {}
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as handle:
+                loaded = json.load(handle)
+                if isinstance(loaded, dict):
+                    existing.update(loaded)
+        existing.update(clean)
+        existing['display_layout_version'] = 2
+        temp_path = f'{config_path}.tmp'
+        with open(temp_path, 'w', encoding='utf-8') as handle:
+            json.dump(existing, handle, indent=2)
+        os.replace(temp_path, config_path)
+    return clean
+
+
 def format_lap_time(seconds):
     """Format seconds as mm:ss.xxx for the browser mirror."""
     try:
@@ -159,9 +234,10 @@ def load_display_config_for_mirror():
     """Load non-secret display settings used by the browser leaderboard mirror."""
     config = DISPLAY_CONFIG_DEFAULTS.copy()
     loaded = {}
-    if os.path.exists(DISPLAY_CONFIG_FILE):
+    config_path = get_config_path()
+    if os.path.exists(config_path):
         try:
-            with open(DISPLAY_CONFIG_FILE, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 loaded = json.load(f)
             for key in DISPLAY_CONFIG_DEFAULTS:
                 if key in loaded:
@@ -185,6 +261,20 @@ def load_display_config_for_mirror():
                 config['horizontal_offset_h'] = loaded.get('horizontal_offset', 0)
             if 'vertical_offset_h' not in loaded and 'vertical_offset' in loaded:
                 config['vertical_offset_h'] = loaded.get('vertical_offset', 0)
+
+    # V1.2.1 used 1080x1920-era vertical dimensions. Upgrade those values to
+    # the 2160x3840 customer template without disturbing later custom edits.
+    try:
+        layout_version = int(loaded.get('display_layout_version', 0))
+    except (TypeError, ValueError):
+        layout_version = 0
+    if orientation == 'vertical' and layout_version < 2:
+        config['vertical_panel_width'] = 1728
+        if int(config.get('vertical_row_height', 123)) == 123:
+            config['vertical_row_height'] = 224
+        if int(config.get('vertical_offset_v', 0)) == 0:
+            config['vertical_offset_v'] = 68
+        config['display_layout_version'] = 2
 
     background_image = str(config.get('background_image') or '')
     has_background = bool(background_image and os.path.isfile(background_image))
@@ -464,8 +554,11 @@ LEADERBOARD_HTML_CONTENT = r"""
 
         function applyScale() {
             const vertical = displayConfig.orientation === 'vertical';
-            const baseWidth = vertical ? 1080 : 1920;
-            const baseHeight = vertical ? 1920 : 1080;
+            // Vertical mode uses the customer's native 4K portrait design
+            // canvas. Scaling the whole stage keeps the board aligned on 4K,
+            // 1080p previews, phones, and browser windows.
+            const baseWidth = vertical ? 2160 : 1920;
+            const baseHeight = vertical ? 3840 : 1080;
             const scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
             stage.style.width = `${baseWidth}px`;
             stage.style.height = `${baseHeight}px`;
@@ -475,8 +568,11 @@ LEADERBOARD_HTML_CONTENT = r"""
         function applyConfig(config) {
             displayConfig = config || {};
             const vertical = displayConfig.orientation === 'vertical';
-            const rowHeight = vertical ? asNumber(displayConfig.vertical_row_height, 123) : 60;
-            const boardWidth = vertical ? 864 : asNumber(displayConfig.panel_width, 1200);
+            const rowHeight = vertical ? asNumber(displayConfig.vertical_row_height, 224) : 60;
+            const boardWidth = vertical
+                ? asNumber(displayConfig.vertical_panel_width, 1728)
+                : asNumber(displayConfig.panel_width, 1200);
+            const verticalScale = vertical ? boardWidth / 864 : 1;
             // Distance (sector challenge) mode shows a 13-entry board; header + entries
             const boardHeight = rowHeight * (1 + maxEntries());
             const offsetX = vertical
@@ -494,10 +590,15 @@ LEADERBOARD_HTML_CONTENT = r"""
             document.documentElement.style.setProperty('--offset-y', `${offsetY}px`);
             document.documentElement.style.setProperty('--header-opacity', opacity);
             document.documentElement.style.setProperty('--entry-opacity', opacity);
-            document.documentElement.style.setProperty('--header-font-size', `${asNumber(displayConfig.header_font_size, 30)}px`);
+            document.documentElement.style.setProperty('--header-font-size', `${asNumber(displayConfig.header_font_size, 30) * verticalScale}px`);
             const entryFontSize = asNumber(displayConfig.other_font_size, asNumber(displayConfig.entry_font_size, 30));
-            document.documentElement.style.setProperty('--entry-font-size', `${entryFontSize}px`);
-            document.documentElement.style.setProperty('--podium-position-font-size', `${entryFontSize + 2}px`);
+            document.documentElement.style.setProperty('--entry-font-size', `${entryFontSize * verticalScale}px`);
+            document.documentElement.style.setProperty('--podium-position-font-size', `${(entryFontSize + 2) * verticalScale}px`);
+            document.documentElement.style.setProperty('--position-col', `${(vertical ? 80 * verticalScale : 100)}px`);
+            document.documentElement.style.setProperty('--distance-col', `${170 * verticalScale}px`);
+            document.documentElement.style.setProperty('--time-col', `${(vertical ? 190 * verticalScale : 180)}px`);
+            document.documentElement.style.setProperty('--column-gap', `${20 * verticalScale}px`);
+            document.documentElement.style.setProperty('--content-padding', `${30 * verticalScale}px`);
 
             // Columns and header follow the ranking mode, like the desktop board
             document.body.classList.toggle('distance-mode', isDistanceMode());
@@ -557,8 +658,8 @@ LEADERBOARD_HTML_CONTENT = r"""
             const headerEl = document.getElementById('header');
             if (!headerEl) { return; }
             const titles = isDistanceMode()
-                ? ['Position', 'Driver', 'Distance', 'Time']
-                : ['Position', 'Driver', 'Time'];
+                ? ['POS', 'DRIVER', 'DISTANCE', 'TIME']
+                : ['POS', 'DRIVER', 'TIME'];
             headerEl.replaceChildren(...titles.map(function (title) {
                 const cell = document.createElement('div');
                 cell.style.textAlign = 'center';
@@ -668,6 +769,130 @@ LEADERBOARD_HTML_CONTENT = r"""
         setInterval(refreshLeaderboard, 1000);
         syncFullscreenButton();
     </script>
+</body>
+</html>
+"""
+
+LEADERBOARD_SETTINGS_HTML_CONTENT = r"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Leaderboard Display Settings</title>
+    <style>
+        :root { color-scheme: dark; font-family: Arial, sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #111614; color: #f5f7f6; }
+        main { width: min(760px, calc(100% - 32px)); margin: 24px auto; }
+        h1 { margin: 0 0 6px; font-size: 28px; }
+        p { color: #aeb8b3; line-height: 1.45; }
+        .card { margin-top: 18px; padding: 20px; border: 1px solid #29352f; border-radius: 12px; background: #18201c; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+        label { display: grid; gap: 6px; color: #cdd5d1; font-size: 13px; }
+        input, select { width: 100%; border: 1px solid #425049; border-radius: 7px; padding: 10px; background: #0e1311; color: white; font-size: 16px; }
+        .check { display: flex; align-items: center; gap: 9px; margin-top: 16px; }
+        .check input { width: 18px; height: 18px; }
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+        button, a.button { border: 0; border-radius: 7px; padding: 11px 16px; background: #28d17c; color: #07110b; font-weight: 700; cursor: pointer; text-decoration: none; }
+        button.secondary, a.secondary { background: #2b3832; color: white; }
+        #status { min-height: 24px; margin-top: 14px; color: #7ceaae; }
+        .note { font-size: 13px; }
+        @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Leaderboard Display Settings</h1>
+    <p>Adjust the live browser leaderboard from a phone, tablet, or laptop on the same network. The display refreshes these settings automatically.</p>
+    <section class="card">
+        <div class="grid">
+            <label>Board width (design px)<input id="vertical_panel_width" type="number" min="600" max="2160"></label>
+            <label>Row height (design px)<input id="vertical_row_height" type="number" min="60" max="260"></label>
+            <label>Horizontal position<input id="horizontal_offset_v" type="number" min="-2160" max="2160"></label>
+            <label>Vertical position<input id="vertical_offset_v" type="number" min="-3840" max="3840"></label>
+            <label>Header text size<input id="header_font_size" type="number" min="12" max="72"></label>
+            <label>Entry text size<input id="other_font_size" type="number" min="12" max="72"></label>
+            <label>First-place size<input id="p1_font_size" type="number" min="12" max="84"></label>
+            <label>Second-place size<input id="p2_font_size" type="number" min="12" max="84"></label>
+            <label>Third-place size<input id="p3_font_size" type="number" min="12" max="84"></label>
+            <label>Panel opacity (0-255)<input id="opacity" type="number" min="0" max="255"></label>
+        </div>
+        <label class="check"><input id="fill_screen" type="checkbox">Stretch the background to fill the complete screen</label>
+        <div class="actions">
+            <button id="save" type="button">Save Settings</button>
+            <button class="secondary" id="template" type="button">Restore 4K Template</button>
+            <a class="button secondary" href="/leaderboard?mode=distance" target="_blank">Open Distance Board</a>
+            <a class="button secondary" href="/leaderboard?mode=lap_time" target="_blank">Open Top 10</a>
+        </div>
+        <div id="status" role="status"></div>
+        <p class="note">4K portrait template: 2160×3840 canvas, 1728×3136 table, 13 distance entries. Fastest-lap mode remains top 10.</p>
+    </section>
+</main>
+<script>
+    const numericFields = [
+        'vertical_panel_width', 'vertical_row_height', 'horizontal_offset_v',
+        'vertical_offset_v', 'header_font_size', 'other_font_size',
+        'p1_font_size', 'p2_font_size', 'p3_font_size', 'opacity'
+    ];
+    const templateValues = {
+        vertical_panel_width: 1728,
+        vertical_row_height: 224,
+        horizontal_offset_v: 0,
+        vertical_offset_v: 68,
+        header_font_size: 30,
+        other_font_size: 30,
+        p1_font_size: 36,
+        p2_font_size: 36,
+        p3_font_size: 36,
+        opacity: 220,
+        fill_screen: true
+    };
+
+    function populate(config) {
+        numericFields.forEach(function (key) {
+            if (config[key] !== undefined) document.getElementById(key).value = config[key];
+        });
+        document.getElementById('fill_screen').checked = Boolean(config.fill_screen);
+    }
+
+    async function load() {
+        const response = await fetch('/api/leaderboard/display-config', { cache: 'no-store' });
+        const data = await response.json();
+        populate(data.config || templateValues);
+    }
+
+    async function save() {
+        const status = document.getElementById('status');
+        const payload = { orientation: 'vertical', ranking_mode: 'distance' };
+        numericFields.forEach(function (key) {
+            payload[key] = Number(document.getElementById(key).value);
+        });
+        payload.fill_screen = document.getElementById('fill_screen').checked;
+        status.textContent = 'Saving…';
+        try {
+            const response = await fetch('/api/leaderboard/display-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Save failed');
+            status.textContent = 'Saved. The leaderboard will update within five seconds.';
+        } catch (error) {
+            status.textContent = `Could not save: ${error.message}`;
+        }
+    }
+
+    document.getElementById('save').addEventListener('click', save);
+    document.getElementById('template').addEventListener('click', function () {
+        populate(templateValues);
+        document.getElementById('status').textContent = '4K template values loaded. Click Save Settings to apply.';
+    });
+    load().catch(function (error) {
+        document.getElementById('status').textContent = `Could not load settings: ${error.message}`;
+    });
+</script>
 </body>
 </html>
 """
@@ -1681,14 +1906,75 @@ class LeaderboardWindow(QWidget):
         """Distance mode shows a 13-entry board (podium top 3 + positions 4-13)"""
         return 13 if self._ranking_mode() == 'distance' else 10
 
+    def _vertical_canvas_scale(self):
+        """Convert 2160x3840 design pixels to the monitor's Qt coordinates.
+
+        Qt reports logical pixels when Windows display scaling is enabled.
+        A 4K portrait panel at 200% therefore appears as 1080x1920 here. The
+        conversion keeps the board at the same physical size at every Windows
+        scale setting. Non-portrait screens retain the design values so the
+        ordinary desktop preview and offscreen tests stay useful.
+        """
+        if self.config.get('orientation', 'horizontal') != 'vertical':
+            return 1.0
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is None:
+            return 1.0
+        geometry = screen.geometry()
+        if geometry.width() >= geometry.height():
+            return 1.0
+        return max(0.25, min(1.0, geometry.width() / 2160.0,
+                            geometry.height() / 3840.0))
+
+    def _vertical_scale(self):
+        """Scale legacy 1080-wide metrics to the configured portrait board."""
+        if self.config.get('orientation', 'horizontal') != 'vertical':
+            return 1.0
+        try:
+            width = int(self.config.get('vertical_panel_width', 1728))
+        except (TypeError, ValueError):
+            width = 1728
+        design_scale = max(0.5, min(2.5, width / 864.0))
+        return design_scale * self._vertical_canvas_scale()
+
+    def _scaled_metric(self, value, minimum=1):
+        return max(minimum, int(round(float(value) * self._vertical_scale())))
+
+    def _vertical_row_height(self):
+        try:
+            design_height = max(60, int(self.config.get('vertical_row_height', 224)))
+        except (TypeError, ValueError):
+            design_height = 224
+        return max(30, int(round(design_height * self._vertical_canvas_scale())))
+
+    def _logical_offset(self, design_offset):
+        if self.config.get('orientation', 'horizontal') == 'vertical':
+            return int(round(design_offset * self._vertical_canvas_scale()))
+        return int(design_offset)
+
+    def _apply_layout_metrics(self):
+        """Keep margins and gaps proportional to a resized portrait board."""
+        scale = self._vertical_scale()
+        margin = max(10, int(round(30 * scale)))
+        gap = max(8, int(round(20 * scale)))
+        if hasattr(self, 'header_widget') and self.header_widget.layout():
+            self.header_widget.layout().setContentsMargins(margin, 0, margin, 0)
+            self.header_widget.layout().setSpacing(gap)
+        for entry_widget in self.entry_widgets:
+            if entry_widget.layout():
+                entry_widget.layout().setContentsMargins(margin, 0, margin, 0)
+                entry_widget.layout().setSpacing(gap)
+
     def _column_layout(self):
         """Headers and fixed column widths for the current ranking mode.
-        Distance mode has one extra 20px layout gap, so its columns total
-        744px. With 60px margins and three gaps, the full layout is exactly
-        864px wide and the DISTANCE header cannot be clipped by the panel."""
+        The values are the proven 864px layout and are scaled proportionally
+        to the configured portrait board width. DISTANCE therefore remains
+        complete at the default 1728px 4K-template width."""
         if self._ranking_mode() == 'distance':
-            return ['POS', 'DRIVER', 'DISTANCE', 'TIME'], [80, 304, 170, 190]
-        return ['POS', 'DRIVER', 'TIME'], [100, 484, 180]
+            widths = [80, 304, 170, 190]
+            return ['POS', 'DRIVER', 'DISTANCE', 'TIME'], [self._scaled_metric(width) for width in widths]
+        widths = [100, 484, 180]
+        return ['POS', 'DRIVER', 'TIME'], [self._scaled_metric(width) for width in widths]
 
     def _fit_header_text(self):
         """Keep every header fully visible, even with a large configured font."""
@@ -1696,7 +1982,7 @@ class LeaderboardWindow(QWidget):
             return
 
         _, widths = self._column_layout()
-        base_size = max(12, int(self.config.get('header_font_size', 30)))
+        base_size = self._scaled_metric(self.config.get('header_font_size', 30), minimum=12)
         header_layout = self.header_widget.layout()
         header_labels = []
         for index in range(header_layout.count()):
@@ -1721,15 +2007,14 @@ class LeaderboardWindow(QWidget):
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
         rows = 1 + self._max_entries()  # header + entries
         if is_vertical:
-            if self._ranking_mode() == 'distance':
-                self.leaderboard_panel.setFixedSize(864, rows * self.config.get('vertical_row_height', 123))
-            else:
-                # 11 rows x 123px = 1353px
-                self.leaderboard_panel.setFixedSize(864, 1353)
+            panel_width = int(round(
+                int(self.config.get('vertical_panel_width', 1728)) * self._vertical_canvas_scale()))
+            self.leaderboard_panel.setFixedSize(panel_width, rows * self._vertical_row_height())
         else:
             # Horizontal mode: 60px rows; 660px for lap_time (11 rows), 840px for distance (14 rows)
             panel_width = self.config.get('panel_width', 1200)
             self.leaderboard_panel.setFixedSize(panel_width, rows * 60)
+        self._apply_layout_metrics()
 
     def _rebuild_columns(self):
         """Rebuild the header and drop entry widgets after a runtime ranking mode switch"""
@@ -1804,7 +2089,7 @@ class LeaderboardWindow(QWidget):
         
         headers, widths = self._column_layout()
         self.header_widget = QWidget()
-        header_font_size = self.config.get('header_font_size', 30)
+        header_font_size = self._scaled_metric(self.config.get('header_font_size', 30), minimum=12)
         self.header_widget.setStyleSheet(f"""
             QWidget {{
                 background-color: rgba(50, 50, 50, 220);
@@ -1823,14 +2108,16 @@ class LeaderboardWindow(QWidget):
         # Set fixed header height based on orientation
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
         if is_vertical:
-            self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
+            self.header_widget.setFixedHeight(self._vertical_row_height())
         else:
             # Horizontal mode: 660px total / 11 rows = 60px per row
             self.header_widget.setFixedHeight(60)
 
         header_layout = QHBoxLayout(self.header_widget)
-        header_layout.setContentsMargins(30, 0, 30, 0)  # No vertical margins
-        header_layout.setSpacing(20)
+        layout_scale = self._vertical_scale()
+        header_margin = max(10, int(round(30 * layout_scale)))
+        header_layout.setContentsMargins(header_margin, 0, header_margin, 0)
+        header_layout.setSpacing(max(8, int(round(20 * layout_scale))))
         header_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         for header, width in zip(headers, widths):
@@ -1845,7 +2132,7 @@ class LeaderboardWindow(QWidget):
         panel_layout.addWidget(self.header_widget)
         
         self.entries_widget = QWidget()
-        entry_font_size = self.config.get('entry_font_size', 30)
+        entry_font_size = self._scaled_metric(self.config.get('entry_font_size', 30), minimum=12)
         self.entries_widget.setStyleSheet(f"""
             QWidget {{
                 background-color: rgba(40, 40, 40, 220);
@@ -1859,7 +2146,7 @@ class LeaderboardWindow(QWidget):
             }}
         """)
         self.entries_layout = QVBoxLayout(self.entries_widget)
-        self.entries_layout.setContentsMargins(20, 0, 20, 0)  # No vertical margins for tight fit
+        self.entries_layout.setContentsMargins(0, 0, 0, 0)
         self.entries_layout.setSpacing(0)  # No spacing - heights are exact
         self.entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # Entries start from top
         panel_layout.addWidget(self.entries_widget)
@@ -1871,8 +2158,8 @@ class LeaderboardWindow(QWidget):
     
     def set_window_mode(self, fullscreen):
         self.is_fullscreen = fullscreen
-        header_font_size = self.config.get('header_font_size', 30)
-        entry_font_size = self.config.get('entry_font_size', 30)
+        header_font_size = self._scaled_metric(self.config.get('header_font_size', 30), minimum=12)
+        entry_font_size = self._scaled_metric(self.config.get('entry_font_size', 30), minimum=12)
         opacity = self.config.get('opacity', 220)
         if fullscreen:
             # Remove borders in fullscreen mode
@@ -2150,7 +2437,7 @@ class LeaderboardWindow(QWidget):
         # Use fixed spacing of 0 in both orientations (heights are exact)
         self.entries_layout.setSpacing(0)
         if is_vertical:
-            self.header_widget.setFixedHeight(self.config.get('vertical_row_height', 123))
+            self.header_widget.setFixedHeight(self._vertical_row_height())
         else:
             self.header_widget.setFixedHeight(60)
         self._apply_panel_size()
@@ -2175,7 +2462,7 @@ class LeaderboardWindow(QWidget):
             
             # Calculate proper row height based on orientation
             if is_vertical:
-                row_height = self.config.get('vertical_row_height', 123)
+                row_height = self._vertical_row_height()
             else:
                 # Horizontal mode: 660px / 11 rows = 60px per row
                 row_height = 60
@@ -2195,8 +2482,10 @@ class LeaderboardWindow(QWidget):
         """Create a reusable entry widget"""
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(10, 0, 10, 0)  # Match header margins
-        layout.setSpacing(20)  # Match header spacing
+        layout_scale = self._vertical_scale()
+        entry_margin = max(10, int(round(30 * layout_scale)))
+        layout.setContentsMargins(entry_margin, 0, entry_margin, 0)
+        layout.setSpacing(max(8, int(round(20 * layout_scale))))
 
         # Column set and widths match the header for the current ranking mode
         _, widths = self._column_layout()
@@ -2215,7 +2504,7 @@ class LeaderboardWindow(QWidget):
         
         if is_vertical:
             # Use fixed row height for vertical mode (123px by default)
-            row_height = self.config.get('vertical_row_height', 123)
+            row_height = self._vertical_row_height()
         else:
             # Horizontal mode: 660px / 11 rows = 60px per row
             row_height = 60
@@ -2242,7 +2531,7 @@ class LeaderboardWindow(QWidget):
         text_gray = '#B0B0B0'
 
         # Font sizes - consistent across all positions for clean look
-        base_font_size = self.config.get('other_font_size', 30)
+        base_font_size = self._scaled_metric(self.config.get('other_font_size', 30), minimum=12)
 
         if position <= 3 and distance_mode:
             # Distance mode podium block - larger per-position fonts, bold accents
@@ -2250,7 +2539,10 @@ class LeaderboardWindow(QWidget):
             accent = accent_colors[position - 1]
             # p1/p2/p3_font_size wired as podium sizes; zero vertical padding keeps
             # the larger text inside the fixed row height
-            podium_size = self.config.get(f'p{position}_font_size', base_font_size + 6)
+            podium_size = self._scaled_metric(
+                self.config.get(f'p{position}_font_size', self.config.get('other_font_size', 30) + 6),
+                minimum=12,
+            )
 
             labels[0].setStyleSheet(f"""
                 color: {accent};
@@ -2379,8 +2671,8 @@ class LeaderboardWindow(QWidget):
         fixed_header_padding = 8
         fixed_entry_padding = 5
         
-        header_font_size = self.config.get('header_font_size', 30)
-        entry_font_size = self.config.get('entry_font_size', 20)
+        header_font_size = self._scaled_metric(self.config.get('header_font_size', 30), minimum=12)
+        entry_font_size = self._scaled_metric(self.config.get('entry_font_size', 20), minimum=12)
             
         header_style = f"""
             QWidget {{
@@ -2416,9 +2708,7 @@ class LeaderboardWindow(QWidget):
         self.row_height_padding = self.config.get('row_height_padding', 16)
         
         self.entries_layout.setSpacing(self.vertical_spacing)
-        fixed_margin = 8  # Fixed margin
-        
-        self.entries_layout.setContentsMargins(20, fixed_margin, 20, fixed_margin)
+        self.entries_layout.setContentsMargins(0, 0, 0, 0)
 
     def update_column_widths(self):
         """Update all column widths based on current config"""
@@ -2454,7 +2744,8 @@ class LeaderboardWindow(QWidget):
             current_y = self.leaderboard_panel.y()
             screen = QApplication.primaryScreen().geometry()
             panel_width = self.leaderboard_panel.width()
-            centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
+            centered_x = ((screen.width() - panel_width) // 2
+                          + self._logical_offset(self.horizontal_offset))
             
             # Keep the panel within the screen bounds
             if centered_x < 0:
@@ -2480,7 +2771,8 @@ class LeaderboardWindow(QWidget):
             current_y = self.leaderboard_panel.y()
             screen = QApplication.primaryScreen().geometry()
             panel_width = self.leaderboard_panel.width()
-            centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
+            centered_x = ((screen.width() - panel_width) // 2
+                          + self._logical_offset(self.horizontal_offset))
             
             # Keep the panel within the screen bounds
             if centered_x < 0:
@@ -2507,9 +2799,11 @@ class LeaderboardWindow(QWidget):
             panel_height = self.leaderboard_panel.height()
             
             # Center panel horizontally with offset
-            centered_x = (screen.width() - panel_width) // 2 + self.horizontal_offset
+            centered_x = ((screen.width() - panel_width) // 2
+                          + self._logical_offset(self.horizontal_offset))
             # Center panel vertically with offset
-            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            centered_y = ((screen.height() - panel_height) // 2
+                          + self._logical_offset(self.vertical_offset))
             
             # Keep the panel within the screen bounds
             if centered_x < 0:
@@ -2528,7 +2822,7 @@ class LeaderboardWindow(QWidget):
     def update_font_sizes(self, data=None):
         """Update all font sizes based on current config"""
         # Update header font sizes
-        header_font_size = self.config.get('header_font_size', 30)
+        header_font_size = self._scaled_metric(self.config.get('header_font_size', 30), minimum=12)
         opacity = self.config.get('opacity', 220)
         self.header_widget.setStyleSheet(f"""
             QWidget {{
@@ -2546,7 +2840,7 @@ class LeaderboardWindow(QWidget):
         self._fit_header_text()
         
         # Update entries widget font size
-        entry_font_size = self.config.get('entry_font_size', 30)
+        entry_font_size = self._scaled_metric(self.config.get('entry_font_size', 30), minimum=12)
         self.entries_widget.setStyleSheet(f"""
             QWidget {{
                 background-color: rgba(40, 40, 40, {self.config.get('opacity', 220)});
@@ -2574,7 +2868,8 @@ class LeaderboardWindow(QWidget):
             current_x = self.leaderboard_panel.x()
             screen = QApplication.primaryScreen().geometry()
             panel_height = self.leaderboard_panel.height()
-            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            centered_y = ((screen.height() - panel_height) // 2
+                          + self._logical_offset(self.vertical_offset))
             
             # Keep the panel within the screen bounds
             if centered_y < 0:
@@ -2600,7 +2895,8 @@ class LeaderboardWindow(QWidget):
             current_x = self.leaderboard_panel.x()
             screen = QApplication.primaryScreen().geometry()
             panel_height = self.leaderboard_panel.height()
-            centered_y = (screen.height() - panel_height) // 2 + self.vertical_offset
+            centered_y = ((screen.height() - panel_height) // 2
+                          + self._logical_offset(self.vertical_offset))
 
             # Keep the panel within the screen bounds
             if centered_y < 0:
@@ -2704,6 +3000,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             elif path == '/api/laptimes/sync':
                 # Peer sync endpoint - receives lap times from other receivers
                 self.handle_peer_sync(data)
+            elif path == '/api/leaderboard/display-config':
+                self.handle_update_leaderboard_display_config(data)
             else:
                 # Default: handle as lap time submission
                 self.handle_lap_time(data)
@@ -3037,6 +3335,8 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_get_leaderboard_display_config()
             elif path == '/leaderboard-background':
                 self.handle_leaderboard_background()
+            elif path == '/leaderboard/settings':
+                self.handle_leaderboard_settings_page()
             elif path in ('/', '/leaderboard'):
                 self.handle_leaderboard_page()
             elif path == '/api/laptimes':
@@ -3090,6 +3390,17 @@ class LapTimeHandler(BaseHTTPRequestHandler):
             'config': config
         })
 
+    def handle_update_leaderboard_display_config(self, data):
+        """Validate and persist settings from the local-network web editor."""
+        try:
+            save_display_config_updates(data)
+            self.send_json_response({
+                'success': True,
+                'config': load_display_config_for_mirror(),
+            })
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            self.send_json_response({'success': False, 'error': str(error)}, 400)
+
     def handle_leaderboard_page(self):
         """Serve a browser-friendly mirror of the local leaderboard."""
         self.send_response(200)
@@ -3097,6 +3408,16 @@ class LapTimeHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(LEADERBOARD_HTML_CONTENT.encode('utf-8'))
+
+    def handle_leaderboard_settings_page(self):
+        """Serve the customer-facing display sizing editor."""
+        body = LEADERBOARD_SETTINGS_HTML_CONTENT.encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
 
     def handle_leaderboard_background(self):
         """Serve the configured local background image to browser mirror clients."""
@@ -3282,22 +3603,24 @@ class ControlWindow(QMainWindow):
             'p3_font_size': 36,    # Third place font size (podium rows in distance mode)
             'other_font_size': 30, # Other positions font size
             'background_image': '',
-            'fill_screen': False,   # Whether to fill the entire screen with background
+            'fill_screen': True,   # Whether to fill the entire screen with background
             'position_width': 120,    # Default width for position column
             'driver_width': 400,     # Default width for driver name column
             'time_width': 200,       # Default width for time column
             'panel_width': 1200,     # Default width for horizontal mode panel
+            'vertical_panel_width': 1728,  # 80% of a 2160px portrait display
             'horizontal_offset': 0,   # Legacy - kept for migration
             'vertical_offset': 0,   # Legacy - kept for migration
             'horizontal_offset_h': 0,   # Horizontal offset for horizontal mode
             'vertical_offset_h': 0,   # Vertical offset for horizontal mode
             'horizontal_offset_v': 0,   # Horizontal offset for vertical mode
-            'vertical_offset_v': 0,   # Vertical offset for vertical mode
+            'vertical_offset_v': 68,   # Align with the 4K customer template
             'vertical_spacing': 4,   # Default vertical spacing between entries
             'row_height_padding': 16,  # Default padding for row height
-            'orientation': 'horizontal',  # 'horizontal' or 'vertical' display mode
-            'vertical_row_height': 123,  # Fixed row height for vertical mode (px)
-            'ranking_mode': 'lap_time'  # 'lap_time' (fastest lap) or 'distance' (sector challenge)
+            'orientation': 'vertical',  # 'horizontal' or 'vertical' display mode
+            'vertical_row_height': 224,  # 3136px / 14 rows on the 4K template
+            'ranking_mode': 'distance',  # 'lap_time' (fastest lap) or 'distance' (sector challenge)
+            'display_layout_version': 2,
         }
         self.leaderboard_window = None
         self.network_thread = None
@@ -3350,6 +3673,18 @@ class ControlWindow(QMainWindow):
                     
                     # Update config with loaded values, keeping defaults for missing keys
                     self.config.update(loaded_config)
+
+                    try:
+                        layout_version = int(loaded_config.get('display_layout_version', 0))
+                    except (TypeError, ValueError):
+                        layout_version = 0
+                    if self.config.get('orientation') == 'vertical' and layout_version < 2:
+                        self.config['vertical_panel_width'] = 1728
+                        if int(self.config.get('vertical_row_height', 123)) == 123:
+                            self.config['vertical_row_height'] = 224
+                        if int(self.config.get('vertical_offset_v', 0)) == 0:
+                            self.config['vertical_offset_v'] = 68
+                        self.config['display_layout_version'] = 2
                     
                 # Always update server_url with current device's IP
                 local_ip = get_local_ip()
@@ -3538,9 +3873,9 @@ class ControlWindow(QMainWindow):
         self.mirror_url_display.setWordWrap(False)
         self.mirror_url_display.setStyleSheet("color: #cccccc; font-size: 11px; background: transparent; border: none;")
         self.update_mirror_url_display()
-        # Guarantee room for both lines whatever else the card holds
+        # Guarantee room for all three paths whatever else the card holds
         self.mirror_url_display.setMinimumHeight(
-            self.mirror_url_display.fontMetrics().height() * 2 + 4
+            self.mirror_url_display.fontMetrics().height() * 3 + 4
         )
         server_card_layout.addWidget(self.mirror_url_display)
 
@@ -3572,6 +3907,12 @@ class ControlWindow(QMainWindow):
         mirror_btn_row.addWidget(copy_top10_btn)
 
         server_card_layout.addLayout(mirror_btn_row)
+
+        copy_settings_btn = QPushButton("Copy Display Settings URL")
+        copy_settings_btn.setToolTip("Open the local web editor for the 4K portrait board")
+        copy_settings_btn.setStyleSheet(mirror_btn_style)
+        copy_settings_btn.clicked.connect(self.copy_display_settings_url)
+        server_card_layout.addWidget(copy_settings_btn)
 
         server_card_layout.addStretch()
 
@@ -3982,6 +4323,18 @@ class ControlWindow(QMainWindow):
         self.panel_width.setFixedWidth(60)
         right_col.addLayout(make_row("Panel Width:", self.panel_width))
 
+        self.vertical_panel_width = QLineEdit(str(self.config.get('vertical_panel_width', 1728)))
+        self.vertical_panel_width.setMaxLength(4)
+        self.vertical_panel_width.setFixedWidth(60)
+        self.vertical_panel_width.setToolTip("Portrait board width; 1728 matches the 4K template")
+        right_col.addLayout(make_row("Vertical Width:", self.vertical_panel_width))
+
+        self.vertical_row_height = QLineEdit(str(self.config.get('vertical_row_height', 224)))
+        self.vertical_row_height.setMaxLength(3)
+        self.vertical_row_height.setFixedWidth(60)
+        self.vertical_row_height.setToolTip("Portrait row height; 224 gives a 3136px top-13 table")
+        right_col.addLayout(make_row("Vertical Row:", self.vertical_row_height))
+
         self.vertical_spacing = QLineEdit(str(self.config.get('vertical_spacing', 4)))
         self.vertical_spacing.setMaxLength(2)
         self.vertical_spacing.setFixedWidth(60)
@@ -4232,12 +4585,15 @@ class ControlWindow(QMainWindow):
             'driver_width': int(self.driver_width.text()),
             'time_width': int(self.time_width.text()),
             'panel_width': int(self.panel_width.text()),
+            'vertical_panel_width': max(600, min(2160, int(self.vertical_panel_width.text()))),
+            'vertical_row_height': max(60, min(260, int(self.vertical_row_height.text()))),
             'vertical_spacing': int(self.vertical_spacing.text()),
             'row_height_padding': int(self.row_height_padding.text()),
             'orientation': self.orientation_toggle.text().lower(),
             # update() mutates self.config in place, so the NetworkThread (which holds
             # this same dict) picks up the new ranking_mode on its next read pass
-            'ranking_mode': self.ranking_mode_combo.currentData()
+            'ranking_mode': self.ranking_mode_combo.currentData(),
+            'display_layout_version': 2,
         })
         
         # Preserve per-mode offset values
@@ -4322,7 +4678,8 @@ class ControlWindow(QMainWindow):
         if hasattr(self, 'mirror_url_display'):
             self.mirror_url_display.setText(
                 "?mode=distance = challenge\n"
-                "?mode=lap_time = top 10"
+                "?mode=lap_time = top 10\n"
+                "/leaderboard/settings = editor"
             )
 
     def copy_mirror_url(self, mode=None):
@@ -4330,6 +4687,12 @@ class ControlWindow(QMainWindow):
         QApplication.clipboard().setText(url)
         label = {'distance': 'sector challenge', 'lap_time': 'classic top 10'}.get(mode, 'mirror')
         self.statusBar().showMessage(f"Copied {label} URL: {url}", 5000)
+
+    def copy_display_settings_url(self):
+        base_url = self.config.get('server_url') or f"http://{get_local_ip()}:{self.config.get('server_port', 5000)}"
+        url = base_url.rstrip('/') + '/leaderboard/settings'
+        QApplication.clipboard().setText(url)
+        self.statusBar().showMessage(f"Copied display settings URL: {url}", 5000)
 
     def on_ranking_mode_changed(self, _index=None):
         """Switch the leaderboard as soon as the ranking is picked.

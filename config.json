@@ -4,5 +4,11 @@
   "refresh_interval": 1,
   "orientation": "vertical",
   "ranking_mode": "distance",
-  "background_image": ""
+  "background_image": "",
+  "fill_screen": true,
+  "vertical_panel_width": 1728,
+  "vertical_row_height": 224,
+  "horizontal_offset_v": 0,
+  "vertical_offset_v": 68,
+  "display_layout_version": 2
 }
