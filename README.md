@@ -19,6 +19,13 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 2. Start the Receiver server.
 3. Use the Lap Time Sender application on the simulator PCs to submit results.
 
+### Updating an existing installation
+
+Run the newer installer over the existing Lap Time Receiver installation; do
+not uninstall the old version first. The installer reuses the previous install
+folder and preserves the existing configuration and branding, manual Top 10
+entries, and simulator lap/distance history.
+
 ## Nurburgring 4K Portrait Display
 
 - The sector challenge defaults to a `2160 x 3840` portrait canvas.

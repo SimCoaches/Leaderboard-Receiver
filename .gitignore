@@ -54,5 +54,6 @@ nul
 *.log
 
 # Temp
+.codex-temp/
 *.tmp
 *.bak

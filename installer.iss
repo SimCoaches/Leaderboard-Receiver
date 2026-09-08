@@ -1,6 +1,6 @@
 [Setup]
 AppName=Lap Time Receiver
-AppVersion=1.3.4
+AppVersion=1.3.5
 AppPublisher=SimRacing Leaderboard
 AppPublisherURL=https://github.com
 DefaultDirName={autopf}\Lap Time Receiver
@@ -28,7 +28,8 @@ Source: "Client\dist\Lap Time Receiver.exe"; DestDir: "{app}"; Flags: ignorevers
 Source: "Client\config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist
 
 ; Data files
-Source: "lap_times.csv"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; Never replace an installed event history during an in-place upgrade.
+Source: "lap_times.csv"; DestDir: "{app}"; Flags: onlyifdoesntexist skipifsourcedoesntexist
 
 ; Documentation
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -71,11 +72,11 @@ begin
 end;
 
 [Icons]
-Name: "{group}\Lap Time Receiver"; Filename: "{app}\Lap Time Receiver.exe"
-Name: "{commondesktop}\Lap Time Receiver"; Filename: "{app}\Lap Time Receiver.exe"
+Name: "{group}\Lap Time Receiver"; Filename: "{app}\Lap Time Receiver.exe"; WorkingDir: "{app}"
+Name: "{commondesktop}\Lap Time Receiver"; Filename: "{app}\Lap Time Receiver.exe"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\Lap Time Receiver.exe"; Description: "Launch Lap Time Receiver"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Lap Time Receiver.exe"; WorkingDir: "{app}"; Description: "Launch Lap Time Receiver"; Flags: nowait postinstall skipifsilent
 
 [InstallDelete]
 Type: files; Name: "{app}\*.pyc"
