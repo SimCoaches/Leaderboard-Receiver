@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
-APP_VERSION = "1.3.2"
+APP_VERSION = "1.3.3"
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -66,6 +66,7 @@ MANUAL_RESULT_COLUMNS = [
     ('finishing_position', 'FINISHING POSITION'),
     ('lap_time', 'LAP TIME'),
 ]
+NASCAR_STARTING_POSITION = 40
 DISPLAY_CONFIG_FILE = "config.json"
 DISPLAY_CONFIG_DEFAULTS = {
     'opacity': 220,
@@ -267,6 +268,27 @@ def _optional_manual_value(value, parser):
     if value is None or str(value).strip() == '':
         return None
     return parser(value)
+
+
+def normalize_nascar_position_pair(cars_passed, finishing_position):
+    """Link the two NASCAR score labels for a fixed 40th-place start."""
+    cars = _optional_manual_value(cars_passed, parse_cars_passed)
+    finish = _optional_manual_value(finishing_position, parse_finishing_position)
+    if cars is None and finish is None:
+        return None, None
+    if cars is not None and not 0 <= cars < NASCAR_STARTING_POSITION:
+        raise ValueError('Cars passed must be between 0 and 39 for a 40th-place start.')
+    if finish is not None and not 1 <= finish <= NASCAR_STARTING_POSITION:
+        raise ValueError('Finishing position must be between 1 and 40.')
+    if cars is None:
+        cars = NASCAR_STARTING_POSITION - finish
+    elif finish is None:
+        finish = NASCAR_STARTING_POSITION - cars
+    elif cars + finish != NASCAR_STARTING_POSITION:
+        raise ValueError(
+            'Cars passed and finishing position must describe the same result '
+            'from a 40th-place start.')
+    return cars, finish
 
 
 def read_manual_top10_entries(limit=10, config=None, csv_file=CARS_PASSED_FILE):
@@ -3733,10 +3755,12 @@ class LapTimeHandler(BaseHTTPRequestHandler):
     def handle_manual_result(self, data):
         """Add or update a manual Top 10 result submitted by the staff iPad."""
         try:
+            cars_passed, finishing_position = normalize_nascar_position_pair(
+                data.get('cars_passed'), data.get('finishing_position'))
             result = save_manual_top10_result(
                 data.get('driver_name'),
-                cars_passed=data.get('cars_passed'),
-                finishing_position=data.get('finishing_position'),
+                cars_passed=cars_passed,
+                finishing_position=finishing_position,
                 lap_time=data.get('lap_time'),
             )
             config = load_display_config_for_mirror()
