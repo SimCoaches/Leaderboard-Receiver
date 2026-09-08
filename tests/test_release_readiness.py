@@ -309,6 +309,24 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         installer = (ROOT / 'installer.iss').read_text(encoding='utf-8')
         self.assertIn(f'AppVersion={receiver.APP_VERSION}', installer)
 
+    def test_installer_preserves_existing_leaderboard_on_upgrade(self):
+        installer = (ROOT / 'installer.iss').read_text(encoding='utf-8')
+        self.assertIn('UsePreviousAppDir=yes', installer)
+        self.assertRegex(
+            installer,
+            r'Source: "Client\\config\.json";[^\r\n]*Flags: onlyifdoesntexist',
+        )
+        self.assertRegex(
+            installer,
+            r'Source: "lap_times\.csv";[^\r\n]*Flags: onlyifdoesntexist',
+        )
+        self.assertNotRegex(installer, r'Source: "cars_passed\.csv"')
+        self.assertNotRegex(installer, r'\[InstallDelete\][\s\S]*cars_passed\.csv')
+        self.assertRegex(
+            installer,
+            r'Name: "\{group\}\\Lap Time Receiver";[^\r\n]*WorkingDir: "\{app\}"',
+        )
+
     def test_old_csv_migrates_without_losing_distance(self):
         with open('lap_times.csv', 'w', newline='', encoding='utf-8') as handle:
             writer = csv.DictWriter(handle, fieldnames=[

@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
-APP_VERSION = "1.3.4"
+APP_VERSION = "1.3.5"
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
