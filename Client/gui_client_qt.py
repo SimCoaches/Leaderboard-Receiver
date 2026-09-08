@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
-APP_VERSION = "1.3.3"
+APP_VERSION = "1.3.4"
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -329,10 +329,19 @@ def read_manual_top10_entries(limit=10, config=None, csv_file=CARS_PASSED_FILE):
         logger.warning(f"Error reading manual Top 10 results: {error}")
         return []
 
+    def lap_tie_break(entry):
+        """Prefer a recorded faster lap; untimed drivers follow timed drivers."""
+        lap_time = entry.get('lap_time')
+        return (
+            lap_time is None,
+            lap_time if lap_time is not None else float('inf'),
+            entry['driver_name'].casefold(),
+        )
+
     if rank_by == 'cars_passed':
-        key = lambda entry: (-entry['cars_passed'], entry['driver_name'].casefold())
+        key = lambda entry: (-entry['cars_passed'], *lap_tie_break(entry))
     elif rank_by == 'finishing_position':
-        key = lambda entry: (entry['finishing_position'], entry['driver_name'].casefold())
+        key = lambda entry: (entry['finishing_position'], *lap_tie_break(entry))
     else:
         key = lambda entry: (entry['lap_time'], entry['driver_name'].casefold())
     ordered = sorted(entries.values(), key=key)
