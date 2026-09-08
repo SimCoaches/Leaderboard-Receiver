@@ -26,14 +26,19 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 - Distance mode ranks the furthest distance first and uses the faster elapsed time to break an equal-distance tie.
 - Lap-time mode remains a fastest-lap top 10.
 - Use **Copy Challenge URL** to open `/leaderboard?mode=distance` on the display computer.
-- For a manually scored event, select **Cars Passed (Manual)**. Enter the
-  participant's name and whole-number cars passed, then choose **Add / Update**.
-  The board displays `POSITION | NAME | CARS PASSED`, ranks the highest number
-  first, and shows the top 10. Re-entering the same name corrects its result;
-  typing a name and choosing **Remove** deletes an accidental entry.
-- Use **Copy Cars URL** to open `/leaderboard?mode=cars_passed` on another display.
-  These results are stored separately in `cars_passed.csv`; lap-time and
-  Nürburgring distance data are not changed.
+- For a manually scored event, select **Manual Top 10**. Enter a participant's
+  name plus Cars Passed, Finishing Position, and/or Lap Time, then choose
+  **Add / Update**. Lap Time accepts seconds or `M:SS.mmm`.
+- Use the **Rank by** radio buttons to switch live between Cars Passed (higher
+  wins), Finishing Position (lower wins), and Lap Time (lower wins). Use the
+  **Show columns** checkboxes to show or hide any optional result column. The
+  active ranking column is always shown; `POSITION` and `NAME` never disappear.
+- The manual leaderboard is always a top 10. Re-entering the same name updates
+  its entered values while preserving blank optional values; typing a name and
+  choosing **Remove** deletes that participant.
+- Use **Copy Manual Top 10 URL** to open `/leaderboard?mode=cars_passed` on
+  another display. Manual results are stored separately in `cars_passed.csv`;
+  simulator lap-time and Nürburgring sector-challenge data are not changed.
 - Use **Copy Display Settings URL** to open `/leaderboard/settings` from a device on the same network. This editor changes the board width, row height, position, text sizes, opacity, and background-fill behavior without editing HTML.
 
 The browser display scales the full template to the available screen while preserving its proportions. The desktop display also compensates for Windows 150% and 200% display scaling.

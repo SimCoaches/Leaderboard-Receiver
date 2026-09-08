@@ -27,5 +27,9 @@
   "orientation": "vertical",
   "vertical_row_height": 224,
   "ranking_mode": "distance",
+  "manual_rank_by": "cars_passed",
+  "manual_show_cars_passed": true,
+  "manual_show_finishing_position": false,
+  "manual_show_lap_time": true,
   "display_layout_version": 2
 }

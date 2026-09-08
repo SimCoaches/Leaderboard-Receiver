@@ -16,11 +16,12 @@ import socket
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QTabWidget, QFileDialog, QMessageBox, QGridLayout,
-                            QFrame, QScrollArea, QSizePolicy, QComboBox)
+                            QFrame, QScrollArea, QSizePolicy, QComboBox,
+                            QRadioButton, QButtonGroup, QCheckBox)
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.3.1"
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -56,8 +57,15 @@ LAP_CSV_FIELDS = [
     'session_id', 'timestamp', 'distance_pct', 'survey_answers'
 ]
 CARS_PASSED_FILE = 'cars_passed.csv'
-CARS_PASSED_FIELDS = ['driver_name', 'cars_passed', 'updated_at']
+CARS_PASSED_FIELDS = [
+    'driver_name', 'cars_passed', 'finishing_position', 'lap_time', 'updated_at'
+]
 CARS_PASSED_LOCK = threading.Lock()
+MANUAL_RESULT_COLUMNS = [
+    ('cars_passed', 'CARS PASSED'),
+    ('finishing_position', 'FINISHING POSITION'),
+    ('lap_time', 'LAP TIME'),
+]
 DISPLAY_CONFIG_FILE = "config.json"
 DISPLAY_CONFIG_DEFAULTS = {
     'opacity': 220,
@@ -78,6 +86,12 @@ DISPLAY_CONFIG_DEFAULTS = {
     'vertical_row_height': 224,
     # Browser mirror needs this to match the desktop board's columns and size
     'ranking_mode': 'distance',
+    # The manual Top 10 is separate from simulator lap/distance data. Staff can
+    # change the ranking and visible result columns during an event.
+    'manual_rank_by': 'cars_passed',
+    'manual_show_cars_passed': True,
+    'manual_show_finishing_position': False,
+    'manual_show_lap_time': True,
     'display_layout_version': 2,
 }
 DISPLAY_CONFIG_LOCK = threading.Lock()
@@ -126,6 +140,20 @@ def validate_display_config_updates(updates):
             if mode is None:
                 raise ValueError('ranking_mode must be distance, lap_time, or cars_passed.')
             clean[key] = mode
+        elif key == 'manual_rank_by':
+            rank_by = normalize_manual_rank_by(value)
+            if rank_by is None:
+                raise ValueError(
+                    'manual_rank_by must be cars_passed, finishing_position, or lap_time.'
+                )
+            clean[key] = rank_by
+        elif key.startswith('manual_show_'):
+            if key not in {
+                    'manual_show_cars_passed',
+                    'manual_show_finishing_position',
+                    'manual_show_lap_time'}:
+                raise ValueError(f'Unsupported display setting: {key}')
+            clean[key] = bool(value)
         else:
             raise ValueError(f'Unsupported display setting: {key}')
     return clean
@@ -169,6 +197,26 @@ def normalize_ranking_mode(value):
     return value if value in ('distance', 'lap_time', 'cars_passed') else None
 
 
+def normalize_manual_rank_by(value):
+    """Coerce a supported manual Top 10 ranking field (None -> None)."""
+    if value is None:
+        return None
+    value = str(value).strip().lower()
+    supported = {column[0] for column in MANUAL_RESULT_COLUMNS}
+    return value if value in supported else None
+
+
+def manual_visible_metrics(config):
+    """Return enabled manual columns, always including the ranking field."""
+    config = config or {}
+    rank_by = normalize_manual_rank_by(config.get('manual_rank_by')) or 'cars_passed'
+    visible = []
+    for key, label in MANUAL_RESULT_COLUMNS:
+        if key == rank_by or bool(config.get(f'manual_show_{key}', False)):
+            visible.append((key, label))
+    return visible
+
+
 def parse_cars_passed(value):
     """Return a non-negative whole-number cars-passed result."""
     if isinstance(value, bool):
@@ -182,11 +230,52 @@ def parse_cars_passed(value):
     return number
 
 
-def read_cars_passed_entries(limit=10, csv_file=CARS_PASSED_FILE):
-    """Read manual event results, ranked by most cars passed."""
+def parse_finishing_position(value):
+    """Return a positive whole-number finishing position."""
+    if isinstance(value, bool):
+        raise ValueError('Finishing position must be a whole number.')
+    try:
+        number = int(str(value).strip())
+    except (TypeError, ValueError):
+        raise ValueError('Finishing position must be a whole number.')
+    if not 1 <= number <= 99999:
+        raise ValueError('Finishing position must be between 1 and 99999.')
+    return number
+
+
+def parse_manual_lap_time(value):
+    """Parse seconds or M:SS.mmm and return positive elapsed seconds."""
+    if isinstance(value, bool):
+        raise ValueError('Lap time must be seconds or M:SS.mmm.')
+    text = str(value or '').strip()
+    try:
+        if ':' in text:
+            parts = text.split(':')
+            if len(parts) != 2:
+                raise ValueError
+            seconds = (int(parts[0]) * 60) + float(parts[1])
+        else:
+            seconds = float(text)
+    except (TypeError, ValueError):
+        raise ValueError('Lap time must be seconds or M:SS.mmm.')
+    if not 0 < seconds <= 86400:
+        raise ValueError('Lap time must be greater than zero and no more than 24 hours.')
+    return round(seconds, 3)
+
+
+def _optional_manual_value(value, parser):
+    if value is None or str(value).strip() == '':
+        return None
+    return parser(value)
+
+
+def read_manual_top10_entries(limit=10, config=None, csv_file=CARS_PASSED_FILE):
+    """Read the manual event, sorted by its currently selected ranking field."""
     if not os.path.exists(csv_file):
         return []
 
+    config = config or load_display_config_for_mirror()
+    rank_by = normalize_manual_rank_by(config.get('manual_rank_by')) or 'cars_passed'
     entries = {}
     try:
         with CARS_PASSED_LOCK:
@@ -196,31 +285,65 @@ def read_cars_passed_entries(limit=10, csv_file=CARS_PASSED_FILE):
                     if not driver_name:
                         continue
                     try:
-                        cars_passed = parse_cars_passed(row.get('cars_passed'))
+                        entry = {
+                            'driver_name': driver_name,
+                            'cars_passed': _optional_manual_value(
+                                row.get('cars_passed'), parse_cars_passed),
+                            'finishing_position': _optional_manual_value(
+                                row.get('finishing_position'), parse_finishing_position),
+                            'lap_time': _optional_manual_value(
+                                row.get('lap_time'), parse_manual_lap_time),
+                            'updated_at': str(row.get('updated_at', '')),
+                        }
                     except ValueError:
                         continue
-                    entries[driver_name.casefold()] = {
-                        'driver_name': driver_name,
-                        'cars_passed': cars_passed,
-                        'updated_at': str(row.get('updated_at', '')),
-                    }
+                    if entry['lap_time'] is not None:
+                        entry['formatted_lap_time'] = format_lap_time(entry['lap_time'])
+                    # A row that does not have the selected score cannot be
+                    # ranked, but remains in the CSV for a later on-the-fly switch.
+                    if entry[rank_by] is not None:
+                        entries[driver_name.casefold()] = entry
     except (OSError, csv.Error) as error:
-        logger.warning(f"Error reading cars-passed results: {error}")
+        logger.warning(f"Error reading manual Top 10 results: {error}")
         return []
 
-    ordered = sorted(
-        entries.values(),
-        key=lambda entry: (-entry['cars_passed'], entry['driver_name'].casefold()),
-    )
+    if rank_by == 'cars_passed':
+        key = lambda entry: (-entry['cars_passed'], entry['driver_name'].casefold())
+    elif rank_by == 'finishing_position':
+        key = lambda entry: (entry['finishing_position'], entry['driver_name'].casefold())
+    else:
+        key = lambda entry: (entry['lap_time'], entry['driver_name'].casefold())
+    ordered = sorted(entries.values(), key=key)
     return ordered[:max(0, int(limit))]
 
 
-def save_cars_passed_result(driver_name, cars_passed, csv_file=CARS_PASSED_FILE):
-    """Add or correct one manual result without touching simulator lap data."""
+def read_cars_passed_entries(limit=10, csv_file=CARS_PASSED_FILE):
+    """Backward-compatible helper for callers that explicitly rank by cars passed."""
+    config = dict(DISPLAY_CONFIG_DEFAULTS)
+    config['manual_rank_by'] = 'cars_passed'
+    return read_manual_top10_entries(limit=limit, config=config, csv_file=csv_file)
+
+
+def save_manual_top10_result(driver_name, cars_passed=None,
+                             finishing_position=None, lap_time=None,
+                             csv_file=CARS_PASSED_FILE):
+    """Add or update manual scores without touching simulator lap/distance data.
+
+    Blank values preserve an existing driver's stored metric. This lets staff
+    update only the result that changed while keeping other optional columns.
+    """
     driver_name = str(driver_name or '').strip()
     if not driver_name:
         raise ValueError('Driver name is required.')
-    cars_passed = parse_cars_passed(cars_passed)
+
+    supplied = {
+        'cars_passed': _optional_manual_value(cars_passed, parse_cars_passed),
+        'finishing_position': _optional_manual_value(
+            finishing_position, parse_finishing_position),
+        'lap_time': _optional_manual_value(lap_time, parse_manual_lap_time),
+    }
+    if all(value is None for value in supplied.values()):
+        raise ValueError('Enter Cars Passed, Finishing Position, or Lap Time.')
 
     rows = []
     with CARS_PASSED_LOCK:
@@ -231,12 +354,19 @@ def save_cars_passed_result(driver_name, cars_passed, csv_file=CARS_PASSED_FILE)
             except (OSError, csv.Error):
                 rows = []
 
+        driver_key = driver_name.casefold()
+        existing = next((row for row in rows
+                         if str(row.get('driver_name', '')).strip().casefold() == driver_key), {})
         replacement = {
             'driver_name': driver_name,
-            'cars_passed': str(cars_passed),
+            'cars_passed': existing.get('cars_passed', ''),
+            'finishing_position': existing.get('finishing_position', ''),
+            'lap_time': existing.get('lap_time', ''),
             'updated_at': datetime.now().isoformat(),
         }
-        driver_key = driver_name.casefold()
+        for field, value in supplied.items():
+            if value is not None:
+                replacement[field] = str(value)
         rows = [
             row for row in rows
             if str(row.get('driver_name', '')).strip().casefold() != driver_key
@@ -251,11 +381,25 @@ def save_cars_passed_result(driver_name, cars_passed, csv_file=CARS_PASSED_FILE)
                              for row in rows)
         os.replace(temp_file, csv_file)
 
-    return {
+    result = {
         'driver_name': driver_name,
-        'cars_passed': cars_passed,
+        'cars_passed': _optional_manual_value(
+            replacement.get('cars_passed'), parse_cars_passed),
+        'finishing_position': _optional_manual_value(
+            replacement.get('finishing_position'), parse_finishing_position),
+        'lap_time': _optional_manual_value(
+            replacement.get('lap_time'), parse_manual_lap_time),
         'updated_at': replacement['updated_at'],
     }
+    if result['lap_time'] is not None:
+        result['formatted_lap_time'] = format_lap_time(result['lap_time'])
+    return result
+
+
+def save_cars_passed_result(driver_name, cars_passed, csv_file=CARS_PASSED_FILE):
+    """Backward-compatible wrapper for the original manual Cars Passed entry."""
+    return save_manual_top10_result(
+        driver_name, cars_passed=cars_passed, csv_file=csv_file)
 
 
 def remove_cars_passed_result(driver_name, csv_file=CARS_PASSED_FILE):
@@ -293,7 +437,7 @@ def read_leaderboard_entries(limit=None, ranking_mode=None):
       - lap_time mode  : fastest lap wins, top 10
       - distance mode  : furthest distance wins (elapsed time breaks ties),
                          13 entries (podium + positions 4-13)
-      - cars_passed    : manually entered; most cars passed wins, top 10
+      - cars_passed    : flexible manual Top 10; operator chooses the ranking
 
     `ranking_mode` overrides the configured mode, which lets two browser
     windows show different boards at once (a sector-challenge board and a
@@ -304,7 +448,10 @@ def read_leaderboard_entries(limit=None, ranking_mode=None):
         ranking_mode = load_display_config_for_mirror().get('ranking_mode', 'lap_time')
     distance_mode = ranking_mode == 'distance'
     if ranking_mode == 'cars_passed':
-        return read_cars_passed_entries(limit=10 if limit is None else limit)
+        return read_manual_top10_entries(
+            limit=10 if limit is None else limit,
+            config=load_display_config_for_mirror(),
+        )
     if limit is None:
         limit = 13 if distance_mode else 10
 
@@ -402,6 +549,14 @@ def load_display_config_for_mirror():
             config['vertical_offset_v'] = 68
         config['display_layout_version'] = 2
 
+    config['manual_rank_by'] = (
+        normalize_manual_rank_by(config.get('manual_rank_by')) or 'cars_passed'
+    )
+    for key, _label in MANUAL_RESULT_COLUMNS:
+        config[f'manual_show_{key}'] = bool(config.get(f'manual_show_{key}', False))
+    # The score used to establish the order must always be visible.
+    config[f"manual_show_{config['manual_rank_by']}"] = True
+
     background_image = str(config.get('background_image') or '')
     has_background = bool(background_image and os.path.isfile(background_image))
     config['has_background'] = has_background
@@ -430,6 +585,7 @@ LEADERBOARD_HTML_CONTENT = r"""
             --driver-col: 484px;
             --time-col: 180px;
             --distance-col: 120px;
+            --manual-grid: 120px minmax(0, 1fr) 220px;
             --column-gap: 20px;
             --content-padding: 30px;
         }
@@ -491,6 +647,11 @@ LEADERBOARD_HTML_CONTENT = r"""
         .distance-mode .header,
         .distance-mode .row {
             grid-template-columns: var(--position-col) minmax(0, 1fr) var(--distance-col) var(--time-col);
+        }
+        /* Flexible manual Top 10: Position | Name | any enabled score columns */
+        .manual-mode .header,
+        .manual-mode .row {
+            grid-template-columns: var(--manual-grid);
         }
         .header {
             height: var(--row-height);
@@ -725,9 +886,19 @@ LEADERBOARD_HTML_CONTENT = r"""
             document.documentElement.style.setProperty('--time-col', `${(isCarsPassedMode() ? 230 * verticalScale : (vertical ? 190 * verticalScale : 180))}px`);
             document.documentElement.style.setProperty('--column-gap', `${20 * verticalScale}px`);
             document.documentElement.style.setProperty('--content-padding', `${30 * verticalScale}px`);
+            const manualCount = manualMetricColumns().length;
+            const manualPositionWidth = manualCount === 1 ? 120 : (manualCount === 2 ? 110 : 100);
+            const manualResultWidth = manualCount === 1 ? 220 : (manualCount === 2 ? 170 : 130);
+            const manualGrid = [
+                `${manualPositionWidth * verticalScale}px`,
+                'minmax(0, 1fr)',
+                ...manualMetricColumns().map(() => `${manualResultWidth * verticalScale}px`),
+            ].join(' ');
+            document.documentElement.style.setProperty('--manual-grid', manualGrid);
 
             // Columns and header follow the ranking mode, like the desktop board
             document.body.classList.toggle('distance-mode', isDistanceMode());
+            document.body.classList.toggle('manual-mode', isCarsPassedMode());
             renderHeader();
 
             if (displayConfig.has_background) {
@@ -782,6 +953,25 @@ LEADERBOARD_HTML_CONTENT = r"""
             return String(displayConfig.ranking_mode || 'lap_time') === 'cars_passed';
         }
 
+        function manualRankBy() {
+            const value = String(displayConfig.manual_rank_by || 'cars_passed');
+            return ['cars_passed', 'finishing_position', 'lap_time'].includes(value)
+                ? value
+                : 'cars_passed';
+        }
+
+        function manualMetricColumns() {
+            const rankBy = manualRankBy();
+            const available = [
+                { key: 'cars_passed', label: 'CARS PASSED' },
+                { key: 'finishing_position', label: 'FINISHING POSITION' },
+                { key: 'lap_time', label: 'LAP TIME' },
+            ];
+            return available.filter(column =>
+                column.key === rankBy || Boolean(displayConfig[`manual_show_${column.key}`])
+            );
+        }
+
         function maxEntries() {
             // Distance mode: podium (top 3) + positions 4-13
             return isDistanceMode() ? 13 : 10;
@@ -793,7 +983,7 @@ LEADERBOARD_HTML_CONTENT = r"""
             const titles = isDistanceMode()
                 ? ['POS', 'DRIVER', 'DISTANCE', 'TIME']
                 : (isCarsPassedMode()
-                    ? ['POSITION', 'NAME', 'CARS PASSED']
+                    ? ['POSITION', 'NAME', ...manualMetricColumns().map(column => column.label)]
                     : ['POS', 'DRIVER', 'TIME']);
             headerEl.replaceChildren(...titles.map(function (title) {
                 const cell = document.createElement('div');
@@ -843,21 +1033,38 @@ LEADERBOARD_HTML_CONTENT = r"""
             driver.className = 'driver';
             driver.textContent = entry.driver_name || '';
 
-            const result = document.createElement('div');
-            result.className = 'time';
-            result.textContent = isCarsPassedMode()
-                ? String(asNumber(entry.cars_passed, 0))
-                : (entry.formatted_lap_time || formatTime(entry.lap_time));
-
             if (isDistanceMode()) {
                 const distance = document.createElement('div');
                 distance.className = 'distance';
                 distance.textContent = formatDistance(entry.distance_pct);
+                const result = document.createElement('div');
+                result.className = 'time';
+                result.textContent = entry.formatted_lap_time || formatTime(entry.lap_time);
                 row.append(position, driver, distance, result);
+            } else if (isCarsPassedMode()) {
+                const results = manualMetricColumns().map(column => {
+                    const result = document.createElement('div');
+                    result.className = 'time';
+                    result.textContent = formatManualValue(entry, column.key);
+                    return result;
+                });
+                row.append(position, driver, ...results);
             } else {
+                const result = document.createElement('div');
+                result.className = 'time';
+                result.textContent = entry.formatted_lap_time || formatTime(entry.lap_time);
                 row.append(position, driver, result);
             }
             return row;
+        }
+
+        function formatManualValue(entry, key) {
+            const value = entry[key];
+            if (value === null || value === undefined || value === '') { return '—'; }
+            if (key === 'lap_time') {
+                return entry.formatted_lap_time || formatTime(value);
+            }
+            return String(value);
         }
 
         function makeEmpty(message) {
@@ -961,10 +1168,10 @@ LEADERBOARD_SETTINGS_HTML_CONTENT = r"""
             <button class="secondary" id="template" type="button">Restore 4K Template</button>
             <a class="button secondary" href="/leaderboard?mode=distance" target="_blank">Open Distance Board</a>
             <a class="button secondary" href="/leaderboard?mode=lap_time" target="_blank">Open Top 10</a>
-            <a class="button secondary" href="/leaderboard?mode=cars_passed" target="_blank">Open Cars Passed</a>
+            <a class="button secondary" href="/leaderboard?mode=cars_passed" target="_blank">Open Manual Top 10</a>
         </div>
         <div id="status" role="status"></div>
-        <p class="note">4K portrait template: 2160×3840 canvas. Distance mode shows 13 entries; fastest-lap and Cars Passed modes show 10.</p>
+        <p class="note">4K portrait template: 2160×3840 canvas. Distance mode shows 13 entries; fastest-lap and Manual Top 10 modes show 10.</p>
     </section>
 </main>
 <script>
@@ -1003,7 +1210,7 @@ LEADERBOARD_SETTINGS_HTML_CONTENT = r"""
     async function save() {
         const status = document.getElementById('status');
         // Sizing changes must not switch the active event between fastest
-        // lap, distance challenge, and manual cars-passed ranking.
+        // lap, distance challenge, and flexible manual Top 10 ranking.
         const payload = { orientation: 'vertical' };
         numericFields.forEach(function (key) {
             payload[key] = Number(document.getElementById(key).value);
@@ -1928,9 +2135,10 @@ class NetworkThread(QThread):
         for i, (old_entry, new_entry) in enumerate(zip(self._last_data, new_data)):
             # Check if position, driver, lap time, distance or manual stat changed
             if (old_entry.get('driver_name') != new_entry.get('driver_name') or
-                abs(old_entry.get('lap_time', 0) - new_entry.get('lap_time', 0)) > 0.001 or
+                old_entry.get('lap_time') != new_entry.get('lap_time') or
                 abs(old_entry.get('distance_pct', 100.0) - new_entry.get('distance_pct', 100.0)) > 0.01 or
-                old_entry.get('cars_passed') != new_entry.get('cars_passed')):
+                old_entry.get('cars_passed') != new_entry.get('cars_passed') or
+                old_entry.get('finishing_position') != new_entry.get('finishing_position')):
                 return True
                 
         return False
@@ -1988,6 +2196,12 @@ class LeaderboardWindow(QWidget):
 
     def _ranking_mode(self):
         return self.config.get('ranking_mode', 'lap_time')
+
+    def _column_signature(self):
+        """Identify column-affecting settings so live checkbox changes rebuild rows."""
+        if self._ranking_mode() != 'cars_passed':
+            return (self._ranking_mode(),)
+        return ('cars_passed', tuple(key for key, _label in manual_visible_metrics(self.config)))
 
     def _max_entries(self):
         """Distance mode shows a 13-entry board (podium top 3 + positions 4-13)"""
@@ -2061,8 +2275,16 @@ class LeaderboardWindow(QWidget):
             widths = [80, 304, 170, 190]
             return ['POS', 'DRIVER', 'DISTANCE', 'TIME'], [self._scaled_metric(width) for width in widths]
         if self._ranking_mode() == 'cars_passed':
-            widths = [120, 414, 230]
-            return ['POSITION', 'NAME', 'CARS PASSED'], [self._scaled_metric(width) for width in widths]
+            metrics = manual_visible_metrics(self.config)
+            metric_count = len(metrics)
+            if metric_count == 1:
+                widths = [120, 424, 220]
+            elif metric_count == 2:
+                widths = [110, 294, 170, 170]
+            else:
+                widths = [100, 234, 130, 130, 130]
+            headers = ['POSITION', 'NAME', *[label for _key, label in metrics]]
+            return headers, [self._scaled_metric(width) for width in widths]
         widths = [100, 484, 180]
         return ['POS', 'DRIVER', 'TIME'], [self._scaled_metric(width) for width in widths]
 
@@ -2130,7 +2352,7 @@ class LeaderboardWindow(QWidget):
             widget.setParent(None)
             widget.deleteLater()
         self.entry_widgets = []
-        self._built_ranking_mode = self._ranking_mode()
+        self._built_column_signature = self._column_signature()
 
     def setup_ui(self):
         # Set window flags for both modes
@@ -2217,7 +2439,7 @@ class LeaderboardWindow(QWidget):
             header_layout.addWidget(label)
         self._fit_header_text()
         # Track which mode the columns were built for so a runtime switch rebuilds them
-        self._built_ranking_mode = self._ranking_mode()
+        self._built_column_signature = self._column_signature()
 
         panel_layout.addWidget(self.header_widget)
         
@@ -2521,7 +2743,7 @@ class LeaderboardWindow(QWidget):
         is_vertical = self.config.get('orientation', 'horizontal') == 'vertical'
 
         # Rebuild the columns if the ranking mode changed since they were built
-        if self._ranking_mode() != self._built_ranking_mode:
+        if self._column_signature() != self._built_column_signature:
             self._rebuild_columns()
 
         # Use fixed spacing of 0 in both orientations (heights are exact)
@@ -2691,13 +2913,14 @@ class LeaderboardWindow(QWidget):
                 font-weight: normal;
             """)
 
-            # Lap time - accent colored
-            labels[2].setStyleSheet(f"""
-                color: {accent};
-                background: transparent;
-                font-size: {base_font_size}px;
-                font-weight: bold;
-            """)
+            # Every displayed result column uses the podium accent.
+            for label in labels[2:]:
+                label.setStyleSheet(f"""
+                    color: {accent};
+                    background: transparent;
+                    font-size: {base_font_size}px;
+                    font-weight: bold;
+                """)
 
             # Subtle row background for podium
             widget.setStyleSheet(f"""
@@ -2751,7 +2974,15 @@ class LeaderboardWindow(QWidget):
             labels[2].setText('100%' if distance_pct >= 99.95 else f"{distance_pct:.1f}%")
             labels[3].setText(time_str)
         elif cars_passed_mode:
-            labels[2].setText(str(entry.get('cars_passed', 0)))
+            values = []
+            for key, _header in manual_visible_metrics(self.config):
+                value = entry.get(key)
+                if key == 'lap_time':
+                    values.append(format_lap_time(value) if value is not None else '—')
+                else:
+                    values.append(str(value) if value is not None else '—')
+            for label, value in zip(labels[2:], values):
+                label.setText(value)
         else:
             time_str = f"{int(entry['lap_time'] // 60):02d}:{entry['lap_time'] % 60:06.3f}"
             labels[2].setText(time_str)
@@ -2807,7 +3038,7 @@ class LeaderboardWindow(QWidget):
     def update_column_widths(self):
         """Update all column widths based on current config"""
         # Rebuild the columns if the ranking mode changed since they were built
-        if self._ranking_mode() != self._built_ranking_mode:
+        if self._column_signature() != self._built_column_signature:
             self._rebuild_columns()
 
         _, widths = self._column_layout()
@@ -3713,7 +3944,11 @@ class ControlWindow(QMainWindow):
             'row_height_padding': 16,  # Default padding for row height
             'orientation': 'vertical',  # 'horizontal' or 'vertical' display mode
             'vertical_row_height': 224,  # 3136px / 14 rows on the 4K template
-            'ranking_mode': 'distance',  # lap time, sector distance, or manual cars passed
+            'ranking_mode': 'distance',  # lap time, sector distance, or flexible manual top 10
+            'manual_rank_by': 'cars_passed',
+            'manual_show_cars_passed': True,
+            'manual_show_finishing_position': False,
+            'manual_show_lap_time': True,
             'display_layout_version': 2,
         }
         self.leaderboard_window = None
@@ -4002,8 +4237,8 @@ class ControlWindow(QMainWindow):
 
         server_card_layout.addLayout(mirror_btn_row)
 
-        copy_cars_btn = QPushButton("Copy Cars Passed URL")
-        copy_cars_btn.setToolTip("Manual top 10 ranked by most cars passed")
+        copy_cars_btn = QPushButton("Copy Manual Top 10 URL")
+        copy_cars_btn.setToolTip("Manual top 10 with operator-selected ranking and columns")
         copy_cars_btn.setStyleSheet(mirror_btn_style)
         copy_cars_btn.clicked.connect(lambda: self.copy_mirror_url('cars_passed'))
         server_card_layout.addWidget(copy_cars_btn)
@@ -4228,12 +4463,12 @@ class ControlWindow(QMainWindow):
         self.ranking_mode_combo = QComboBox()
         self.ranking_mode_combo.addItem("Fastest Lap", "lap_time")
         self.ranking_mode_combo.addItem("Distance Challenge", "distance")
-        self.ranking_mode_combo.addItem("Cars Passed (Manual)", "cars_passed")
+        self.ranking_mode_combo.addItem("Manual Top 10", "cars_passed")
         self.ranking_mode_combo.setFixedWidth(205)
         self.ranking_mode_combo.setToolTip(
             "Fastest Lap: classic top 10.\n"
             "Distance Challenge: sector challenge board, 13 places with a Distance column.\n"
-            "Cars Passed: manually enter each name and number; highest number ranks first.\n"
+            "Manual Top 10: enter event results and select the ranking/columns below.\n"
             "Takes effect immediately."
         )
         ranking_index = self.ranking_mode_combo.findData(self.config.get('ranking_mode', 'lap_time'))
@@ -4251,29 +4486,96 @@ class ControlWindow(QMainWindow):
         self.manual_results_widget.setStyleSheet(
             "QFrame { background-color: #252526; border: 1px solid #3c3c3c; border-radius: 4px; }"
         )
-        manual_row = QHBoxLayout(self.manual_results_widget)
-        manual_row.setContentsMargins(10, 8, 10, 8)
-        manual_row.setSpacing(8)
+        manual_layout = QVBoxLayout(self.manual_results_widget)
+        manual_layout.setContentsMargins(10, 8, 10, 8)
+        manual_layout.setSpacing(7)
+
+        rank_by_row = QHBoxLayout()
+        rank_by_row.setSpacing(10)
+        rank_by_row.addWidget(QLabel("Rank by:"))
+        self.manual_rank_group = QButtonGroup(self)
+        self.manual_rank_buttons = {}
+        for label, key in (
+                ("Cars Passed", "cars_passed"),
+                ("Finishing Position", "finishing_position"),
+                ("Lap Time", "lap_time")):
+            button = QRadioButton(label)
+            button.setToolTip({
+                'cars_passed': 'Higher number ranks first',
+                'finishing_position': 'Lower finishing position ranks first',
+                'lap_time': 'Lower lap time ranks first',
+            }[key])
+            self.manual_rank_group.addButton(button)
+            self.manual_rank_buttons[key] = button
+            rank_by_row.addWidget(button)
+        rank_by_row.addStretch()
+        manual_layout.addLayout(rank_by_row)
+
+        show_row = QHBoxLayout()
+        show_row.setSpacing(10)
+        show_row.addWidget(QLabel("Show columns:"))
+        self.manual_column_checks = {}
+        for label, key in (
+                ("Cars Passed", "cars_passed"),
+                ("Finishing Position", "finishing_position"),
+                ("Lap Time", "lap_time")):
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(bool(self.config.get(f'manual_show_{key}', False)))
+            self.manual_column_checks[key] = checkbox
+            show_row.addWidget(checkbox)
+        show_row.addStretch()
+        manual_layout.addLayout(show_row)
+
+        configured_rank = normalize_manual_rank_by(
+            self.config.get('manual_rank_by')) or 'cars_passed'
+        self.manual_rank_buttons[configured_rank].setChecked(True)
+        self._sync_manual_column_controls()
+        for button in self.manual_rank_buttons.values():
+            button.toggled.connect(self.on_manual_settings_changed)
+        for checkbox in self.manual_column_checks.values():
+            checkbox.toggled.connect(self.on_manual_settings_changed)
+
+        manual_name_row = QHBoxLayout()
+        manual_name_row.setSpacing(8)
         self.manual_driver_name = QLineEdit()
         self.manual_driver_name.setPlaceholderText("Driver name")
         self.manual_driver_name.setMaxLength(80)
         self.manual_cars_passed = QLineEdit()
         self.manual_cars_passed.setPlaceholderText("Cars passed")
         self.manual_cars_passed.setMaxLength(5)
-        self.manual_cars_passed.setFixedWidth(110)
+        self.manual_cars_passed.setFixedWidth(105)
+        self.manual_finishing_position = QLineEdit()
+        self.manual_finishing_position.setPlaceholderText("Finish pos.")
+        self.manual_finishing_position.setMaxLength(5)
+        self.manual_finishing_position.setFixedWidth(105)
+        self.manual_lap_time = QLineEdit()
+        self.manual_lap_time.setPlaceholderText("Lap M:SS.mmm")
+        self.manual_lap_time.setMaxLength(16)
+        self.manual_lap_time.setFixedWidth(125)
         manual_add_btn = QPushButton("Add / Update")
-        manual_add_btn.setToolTip("Add a driver or correct that driver's cars-passed result")
+        manual_add_btn.setToolTip("Add a driver or update any entered manual results")
         manual_add_btn.clicked.connect(self.add_manual_result)
         manual_remove_btn = QPushButton("Remove")
         manual_remove_btn.setToolTip("Remove the typed driver from this manual leaderboard")
         manual_remove_btn.clicked.connect(self.remove_manual_result)
         self.manual_driver_name.returnPressed.connect(self.add_manual_result)
         self.manual_cars_passed.returnPressed.connect(self.add_manual_result)
-        manual_row.addWidget(QLabel("Manual result:"))
-        manual_row.addWidget(self.manual_driver_name, 1)
-        manual_row.addWidget(self.manual_cars_passed)
-        manual_row.addWidget(manual_add_btn)
-        manual_row.addWidget(manual_remove_btn)
+        self.manual_finishing_position.returnPressed.connect(self.add_manual_result)
+        self.manual_lap_time.returnPressed.connect(self.add_manual_result)
+        manual_name_row.addWidget(QLabel("Driver:"))
+        manual_name_row.addWidget(self.manual_driver_name, 1)
+        manual_name_row.addWidget(manual_add_btn)
+        manual_name_row.addWidget(manual_remove_btn)
+        manual_layout.addLayout(manual_name_row)
+
+        manual_values_row = QHBoxLayout()
+        manual_values_row.setSpacing(8)
+        manual_values_row.addWidget(QLabel("Results:"))
+        manual_values_row.addWidget(self.manual_cars_passed)
+        manual_values_row.addWidget(self.manual_finishing_position)
+        manual_values_row.addWidget(self.manual_lap_time)
+        manual_values_row.addStretch()
+        manual_layout.addLayout(manual_values_row)
         general_layout.addWidget(self.manual_results_widget)
         self._update_manual_results_visibility()
 
@@ -4735,6 +5037,10 @@ class ControlWindow(QMainWindow):
             # update() mutates self.config in place, so the NetworkThread (which holds
             # this same dict) picks up the new ranking_mode on its next read pass
             'ranking_mode': self.ranking_mode_combo.currentData(),
+            'manual_rank_by': self._current_manual_rank_by(),
+            'manual_show_cars_passed': self.manual_column_checks['cars_passed'].isChecked(),
+            'manual_show_finishing_position': self.manual_column_checks['finishing_position'].isChecked(),
+            'manual_show_lap_time': self.manual_column_checks['lap_time'].isChecked(),
             'display_layout_version': 2,
         })
         
@@ -4831,7 +5137,7 @@ class ControlWindow(QMainWindow):
         label = {
             'distance': 'sector challenge',
             'lap_time': 'classic top 10',
-            'cars_passed': 'manual cars-passed board',
+            'cars_passed': 'manual Top 10 board',
         }.get(mode, 'mirror')
         self.statusBar().showMessage(f"Copied {label} URL: {url}", 5000)
 
@@ -4882,7 +5188,7 @@ class ControlWindow(QMainWindow):
         labels = {
             'distance': "Distance Challenge (13 places)",
             'lap_time': "Fastest Lap (top 10)",
-            'cars_passed': "Cars Passed (manual top 10)",
+            'cars_passed': "Manual Top 10",
         }
         label = labels[mode]
         self.statusBar().showMessage(f"Leaderboard switched to {label}", 4000)
@@ -4892,28 +5198,118 @@ class ControlWindow(QMainWindow):
             self.manual_results_widget.setVisible(
                 self.ranking_mode_combo.currentData() == 'cars_passed')
 
-    def add_manual_result(self):
-        """Add or correct one Cars Passed result and refresh immediately."""
+    def _current_manual_rank_by(self):
+        """Return the selected manual ranking without trusting transient UI state."""
+        for key, button in getattr(self, 'manual_rank_buttons', {}).items():
+            if button.isChecked():
+                return key
+        return normalize_manual_rank_by(self.config.get('manual_rank_by')) or 'cars_passed'
+
+    def _sync_manual_column_controls(self):
+        """Keep the selected ranking metric visible and lock its checkbox."""
+        rank_by = self._current_manual_rank_by()
+        for key, checkbox in getattr(self, 'manual_column_checks', {}).items():
+            previous = checkbox.blockSignals(True)
+            if key == rank_by:
+                checkbox.setChecked(True)
+                checkbox.setEnabled(False)
+            else:
+                checkbox.setEnabled(True)
+            checkbox.blockSignals(previous)
+
+    def _manual_display_config_from_controls(self):
+        rank_by = self._current_manual_rank_by()
+        values = {'manual_rank_by': rank_by}
+        for key, checkbox in self.manual_column_checks.items():
+            values[f'manual_show_{key}'] = checkbox.isChecked() or key == rank_by
+        return values
+
+    def on_manual_settings_changed(self, _checked=None):
+        """Apply manual ranking/column switches immediately to both displays."""
+        sender = self.sender()
+        if isinstance(sender, QRadioButton) and not sender.isChecked():
+            return
+        self._sync_manual_column_controls()
+        updates = self._manual_display_config_from_controls()
+        self.config.update(updates)
         try:
-            result = save_cars_passed_result(
+            with open(get_config_path(), 'w') as handle:
+                json.dump(self.config, handle)
+        except OSError as error:
+            logger.warning(f"Could not save manual leaderboard settings: {error}")
+
+        data = read_manual_top10_entries(config=self.config)
+        if self.network_thread:
+            self.network_thread._last_data = data.copy()
+        if self.leaderboard_window and self.config.get('ranking_mode') == 'cars_passed':
+            self.leaderboard_window.config.update(updates)
+            # Ranking mode itself did not change, but the number of columns may have.
+            if (self.leaderboard_window._column_signature() !=
+                    self.leaderboard_window._built_column_signature):
+                self.leaderboard_window._rebuild_columns()
+            self.leaderboard_window._apply_panel_size()
+            self.leaderboard_window.update_entries(data)
+
+        labels = {
+            'cars_passed': 'Cars Passed (higher wins)',
+            'finishing_position': 'Finishing Position (lower wins)',
+            'lap_time': 'Lap Time (lower wins)',
+        }
+        self.statusBar().showMessage(
+            f"Manual Top 10 updated — ranked by {labels[updates['manual_rank_by']]}",
+            5000,
+        )
+
+    def add_manual_result(self):
+        """Add or correct one flexible manual Top 10 result."""
+        rank_by = self._current_manual_rank_by()
+        raw_values = {
+            'cars_passed': self.manual_cars_passed.text(),
+            'finishing_position': self.manual_finishing_position.text(),
+            'lap_time': self.manual_lap_time.text(),
+        }
+        if not raw_values[rank_by].strip():
+            labels = {
+                'cars_passed': 'Cars Passed',
+                'finishing_position': 'Finishing Position',
+                'lap_time': 'Lap Time',
+            }
+            QMessageBox.warning(
+                self, "Missing Ranking Result",
+                f"Enter {labels[rank_by]} because the board is currently ranked by it.",
+            )
+            return
+        try:
+            result = save_manual_top10_result(
                 self.manual_driver_name.text(),
-                self.manual_cars_passed.text(),
+                cars_passed=raw_values['cars_passed'],
+                finishing_position=raw_values['finishing_position'],
+                lap_time=raw_values['lap_time'],
             )
         except (OSError, ValueError) as error:
             QMessageBox.warning(self, "Invalid Manual Result", str(error))
             return
 
-        data = read_cars_passed_entries()
+        data = read_manual_top10_entries(config=self.config)
         if self.network_thread:
             self.network_thread._last_data = data.copy()
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
 
         self.manual_cars_passed.clear()
+        self.manual_finishing_position.clear()
+        self.manual_lap_time.clear()
         self.manual_driver_name.selectAll()
         self.manual_driver_name.setFocus()
+        saved = []
+        if result['cars_passed'] is not None:
+            saved.append(f"{result['cars_passed']} cars passed")
+        if result['finishing_position'] is not None:
+            saved.append(f"finish P{result['finishing_position']}")
+        if result['lap_time'] is not None:
+            saved.append(f"lap {format_lap_time(result['lap_time'])}")
         self.statusBar().showMessage(
-            f"Saved {result['driver_name']}: {result['cars_passed']} cars passed",
+            f"Saved {result['driver_name']}: {', '.join(saved)}",
             5000,
         )
 
@@ -4929,13 +5325,15 @@ class ControlWindow(QMainWindow):
             QMessageBox.information(self, "Not Found", f"No result found for {driver_name}.")
             return
 
-        data = read_cars_passed_entries()
+        data = read_manual_top10_entries(config=self.config)
         if self.network_thread:
             self.network_thread._last_data = data.copy()
         if self.leaderboard_window:
             self.leaderboard_window.update_entries(data)
         self.manual_driver_name.clear()
         self.manual_cars_passed.clear()
+        self.manual_finishing_position.clear()
+        self.manual_lap_time.clear()
         self.manual_driver_name.setFocus()
         self.statusBar().showMessage(f"Removed {driver_name}", 5000)
 

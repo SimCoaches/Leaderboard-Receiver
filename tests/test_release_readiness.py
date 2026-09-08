@@ -100,46 +100,98 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertEqual('Driver 00', board[0]['driver_name'])
         self.assertEqual('Driver 09', board[-1]['driver_name'])
 
-    def test_manual_cars_passed_board_updates_and_ranks_top_10(self):
+    def test_manual_top10_switches_ranking_and_preserves_other_results(self):
         for index in range(12):
-            receiver.save_cars_passed_result(
+            receiver.save_manual_top10_result(
                 f'Driver {index:02d}',
-                index,
+                cars_passed=index,
+                finishing_position=12 - index,
+                lap_time=100 - index,
             )
 
         # A correction replaces the old value instead of retaining a previous
-        # higher score, which is essential for operator-entered event results.
+        # higher score, while blank fields preserve the other two metrics.
         receiver.save_cars_passed_result('driver 11', 3)
-        board = receiver.read_leaderboard_entries(ranking_mode='cars_passed')
+        cars_config = dict(receiver.DISPLAY_CONFIG_DEFAULTS)
+        cars_config['manual_rank_by'] = 'cars_passed'
+        board = receiver.read_manual_top10_entries(config=cars_config)
 
         self.assertEqual(10, len(board))
         self.assertEqual('Driver 10', board[0]['driver_name'])
         self.assertEqual(10, board[0]['cars_passed'])
         corrected = next(row for row in board if row['driver_name'].casefold() == 'driver 11')
         self.assertEqual(3, corrected['cars_passed'])
+        self.assertEqual(1, corrected['finishing_position'])
+        self.assertEqual(89, corrected['lap_time'])
         self.assertEqual(len(board), len({row['driver_name'].casefold() for row in board}))
         self.assertFalse(Path('lap_times.csv').exists())
+
+        finish_config = dict(cars_config, manual_rank_by='finishing_position')
+        finish_board = receiver.read_manual_top10_entries(config=finish_config)
+        self.assertEqual('driver 11', finish_board[0]['driver_name'])
+        self.assertEqual(1, finish_board[0]['finishing_position'])
+
+        lap_config = dict(cars_config, manual_rank_by='lap_time')
+        lap_board = receiver.read_manual_top10_entries(config=lap_config)
+        self.assertEqual('driver 11', lap_board[0]['driver_name'])
+        self.assertEqual(89, lap_board[0]['lap_time'])
+
         self.assertTrue(receiver.remove_cars_passed_result('DRIVER 10'))
         self.assertFalse(receiver.remove_cars_passed_result('Missing Driver'))
         self.assertEqual(
             'Driver 09',
-            receiver.read_leaderboard_entries(ranking_mode='cars_passed')[0]['driver_name'],
+            receiver.read_manual_top10_entries(config=cars_config)[0]['driver_name'],
         )
 
-    def test_manual_cars_passed_columns_match_event_request(self):
+    def test_manual_top10_columns_activate_and_deactivate(self):
         app = QApplication.instance() or QApplication([])
         config = dict(receiver.DISPLAY_CONFIG_DEFAULTS)
         config['ranking_mode'] = 'cars_passed'
         window = receiver.LeaderboardWindow(config)
         try:
             headers, widths = window._column_layout()
-            self.assertEqual(['POSITION', 'NAME', 'CARS PASSED'], headers)
-            self.assertEqual(1728, sum(widths) + 120 + (2 * 40))
+            self.assertEqual(['POSITION', 'NAME', 'CARS PASSED', 'LAP TIME'], headers)
+            self.assertEqual(1728, sum(widths) + 120 + (3 * 40))
             self.assertEqual(10, window._max_entries())
             self.assertEqual(2464, window.leaderboard_panel.height())
-            window.update_entries([{'driver_name': 'Jordan Lee', 'cars_passed': 27}])
+
+            # Switching to finishing-position-only changes both the ranking
+            # requirement and the columns while preserving the Top 10 layout.
+            window.config.update({
+                'manual_rank_by': 'finishing_position',
+                'manual_show_cars_passed': False,
+                'manual_show_finishing_position': False,
+                'manual_show_lap_time': False,
+            })
+            window.update_column_widths()
+            headers, widths = window._column_layout()
+            self.assertEqual(['POSITION', 'NAME', 'FINISHING POSITION'], headers)
+            self.assertEqual(1728, sum(widths) + 120 + (2 * 40))
+            self.assertEqual(
+                [('finishing_position', 'FINISHING POSITION')],
+                receiver.manual_visible_metrics(window.config),
+            )
+            window.update_entries([{
+                'driver_name': 'Jordan Lee',
+                'cars_passed': 27,
+                'finishing_position': 2,
+                'lap_time': 91.234,
+            }])
             row_labels = window.entry_widgets[0].findChildren(QLabel)
-            self.assertEqual(['1', 'Jordan Lee', '27'], [label.text() for label in row_labels])
+            self.assertEqual(['1', 'Jordan Lee', '2'], [label.text() for label in row_labels])
+
+            window.config.update({
+                'manual_show_cars_passed': True,
+                'manual_show_finishing_position': True,
+                'manual_show_lap_time': True,
+            })
+            window.update_column_widths()
+            headers, widths = window._column_layout()
+            self.assertEqual(
+                ['POSITION', 'NAME', 'CARS PASSED', 'FINISHING POSITION', 'LAP TIME'],
+                headers,
+            )
+            self.assertEqual(1728, sum(widths) + 120 + (4 * 40))
         finally:
             window.close()
             app.processEvents()
@@ -336,7 +388,9 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertIn('const baseWidth = vertical ? 2160 : 1920;', html)
         self.assertIn('const baseHeight = vertical ? 3840 : 1080;', html)
         self.assertIn('displayConfig.vertical_panel_width, 1728', html)
-        self.assertIn("['POSITION', 'NAME', 'CARS PASSED']", html)
+        self.assertIn("{ key: 'finishing_position', label: 'FINISHING POSITION' }", html)
+        self.assertIn("displayConfig[`manual_show_${column.key}`]", html)
+        self.assertIn("document.body.classList.toggle('manual-mode'", html)
         self.assertIn("pinnedMode === 'cars_passed'", html)
 
 
