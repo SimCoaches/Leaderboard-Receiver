@@ -75,6 +75,7 @@ Simulator → HTTP POST (port 5000) → LapTimeHandler → lap_times.csv → Net
 - `lap_times.csv` - Leaderboard data (CSV with: simulator_id, driver_name, lap_time, email, phone, timestamp, distance_pct). `distance_pct` (0-100, default 100.0) is how far around the track a run got; older CSV layouts are migrated automatically.
 - `config.json` - User settings (display, server, theme configuration). Includes `ranking_mode`: `"lap_time"` (rank by fastest lap), `"distance"` (sector challenge: rank by highest distance_pct, tie-broken by lap time), or `"cars_passed"` (flexible manual top 10). Manual mode also uses `manual_rank_by` and the three `manual_show_*` flags.
 - `cars_passed.csv` - Manual event results (`driver_name`, `cars_passed`, `finishing_position`, `lap_time`, `updated_at`). Kept separate from simulator lap/distance data. The historical filename is retained for upgrade compatibility.
+  Equal Cars Passed or Finishing Position values are tie-broken by the faster recorded lap, then driver name; untimed drivers sort behind timed drivers in the same position.
 - `queue.json` - Queue state (auto-created)
 - `sms_config.json` - SMS provider config (Textbelt or Twilio)
 

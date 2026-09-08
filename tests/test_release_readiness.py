@@ -143,6 +143,27 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
             receiver.read_manual_top10_entries(config=cars_config)[0]['driver_name'],
         )
 
+    def test_manual_position_ties_use_fastest_lap_then_name(self):
+        tied_results = (
+            ('Alpha Slow', 12, 28, 100.0),
+            ('Zulu Fast', 12, 28, 90.0),
+            ('Charlie Fast', 12, 28, 90.0),
+            ('Bravo Untimed', 12, 28, None),
+        )
+        for name, cars_passed, finishing_position, lap_time in tied_results:
+            receiver.save_manual_top10_result(
+                name,
+                cars_passed=cars_passed,
+                finishing_position=finishing_position,
+                lap_time=lap_time,
+            )
+
+        expected = ['Charlie Fast', 'Zulu Fast', 'Alpha Slow', 'Bravo Untimed']
+        for rank_by in ('cars_passed', 'finishing_position'):
+            config = dict(receiver.DISPLAY_CONFIG_DEFAULTS, manual_rank_by=rank_by)
+            board = receiver.read_manual_top10_entries(config=config)
+            self.assertEqual(expected, [entry['driver_name'] for entry in board])
+
     def test_manual_top10_columns_activate_and_deactivate(self):
         app = QApplication.instance() or QApplication([])
         config = dict(receiver.DISPLAY_CONFIG_DEFAULTS)

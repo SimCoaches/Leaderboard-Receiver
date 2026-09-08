@@ -42,6 +42,8 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 - For the NASCAR event, every driver starts 40th. Cars Passed and Finishing
   Position are the same score expressed two ways, so the iPad and Receiver
   enforce `Finishing Position = 40 - Cars Passed` (12 passed = 28th).
+- When drivers have the same Cars Passed or Finishing Position, the faster Lap
+  Time ranks first. If neither driver has a lap, their names are the final tie-breaker.
 - Use **Copy Manual Top 10 URL** to open `/leaderboard?mode=cars_passed` on
   another display. Manual results are stored separately in `cars_passed.csv`;
   simulator lap-time and Nürburgring sector-challenge data are not changed.
