@@ -321,6 +321,8 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
                 thread.join(timeout=5)
 
         self.assertIn('Leaderboard Display Settings', settings_html)
+        self.assertIn("const payload = { orientation: 'vertical' };", settings_html)
+        self.assertNotIn("ranking_mode: 'distance'", settings_html)
         self.assertEqual(1600, saved['config']['vertical_panel_width'])
         self.assertEqual(210, saved['config']['vertical_row_height'])
         self.assertEqual(400, raised.exception.code)

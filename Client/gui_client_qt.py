@@ -964,7 +964,7 @@ LEADERBOARD_SETTINGS_HTML_CONTENT = r"""
             <a class="button secondary" href="/leaderboard?mode=cars_passed" target="_blank">Open Cars Passed</a>
         </div>
         <div id="status" role="status"></div>
-        <p class="note">4K portrait template: 2160×3840 canvas, 1728×3136 table, 13 distance entries. Fastest-lap mode remains top 10.</p>
+        <p class="note">4K portrait template: 2160×3840 canvas. Distance mode shows 13 entries; fastest-lap and Cars Passed modes show 10.</p>
     </section>
 </main>
 <script>
@@ -1002,7 +1002,9 @@ LEADERBOARD_SETTINGS_HTML_CONTENT = r"""
 
     async function save() {
         const status = document.getElementById('status');
-        const payload = { orientation: 'vertical', ranking_mode: 'distance' };
+        // Sizing changes must not switch the active event between fastest
+        // lap, distance challenge, and manual cars-passed ranking.
+        const payload = { orientation: 'vertical' };
         numericFields.forEach(function (key) {
             payload[key] = Number(document.getElementById(key).value);
         });
