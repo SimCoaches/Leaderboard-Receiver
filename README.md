@@ -26,6 +26,14 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 - Distance mode ranks the furthest distance first and uses the faster elapsed time to break an equal-distance tie.
 - Lap-time mode remains a fastest-lap top 10.
 - Use **Copy Challenge URL** to open `/leaderboard?mode=distance` on the display computer.
+- For a manually scored event, select **Cars Passed (Manual)**. Enter the
+  participant's name and whole-number cars passed, then choose **Add / Update**.
+  The board displays `POSITION | NAME | CARS PASSED`, ranks the highest number
+  first, and shows the top 10. Re-entering the same name corrects its result;
+  typing a name and choosing **Remove** deletes an accidental entry.
+- Use **Copy Cars URL** to open `/leaderboard?mode=cars_passed` on another display.
+  These results are stored separately in `cars_passed.csv`; lap-time and
+  Nürburgring distance data are not changed.
 - Use **Copy Display Settings URL** to open `/leaderboard/settings` from a device on the same network. This editor changes the board width, row height, position, text sizes, opacity, and background-fill behavior without editing HTML.
 
 The browser display scales the full template to the available screen while preserving its proportions. The desktop display also compensates for Windows 150% and 200% display scaling.

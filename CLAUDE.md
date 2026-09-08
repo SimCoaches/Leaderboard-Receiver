@@ -44,6 +44,7 @@ venue can run both at once from one receiver:
 
 - `/leaderboard?mode=distance` - sector challenge board (13 rows + Distance)
 - `/leaderboard?mode=lap_time` - classic fastest-lap top 10
+- `/leaderboard?mode=cars_passed` - manual top 10 ranked by most cars passed
 - `/leaderboard` - follows whatever the desktop leaderboard is set to
 
 The page passes its pinned mode to `/api/leaderboard` and
@@ -68,7 +69,8 @@ Simulator → HTTP POST (port 5000) → LapTimeHandler → lap_times.csv → Net
 ### Key Files
 
 - `lap_times.csv` - Leaderboard data (CSV with: simulator_id, driver_name, lap_time, email, phone, timestamp, distance_pct). `distance_pct` (0-100, default 100.0) is how far around the track a run got; older CSV layouts are migrated automatically.
-- `config.json` - User settings (display, server, theme configuration). Includes `ranking_mode`: `"lap_time"` (default, rank by fastest lap) or `"distance"` (sector challenge: rank by highest distance_pct, tie-broken by lap time; the display adds a Distance column showing the percentage and always shows the elapsed time in the Time column)
+- `config.json` - User settings (display, server, theme configuration). Includes `ranking_mode`: `"lap_time"` (rank by fastest lap), `"distance"` (sector challenge: rank by highest distance_pct, tie-broken by lap time), or `"cars_passed"` (manual top 10, highest number first).
+- `cars_passed.csv` - Manual event results (`driver_name`, `cars_passed`, `updated_at`). Kept separate from simulator lap data; re-entering a name replaces its prior result.
 - `queue.json` - Queue state (auto-created)
 - `sms_config.json` - SMS provider config (Textbelt or Twilio)
 
