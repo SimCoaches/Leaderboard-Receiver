@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPalette, QColor, QFont, QFontMetrics, QImage, QCursor, QIcon
 
-APP_VERSION = "1.3.1"
+APP_VERSION = "1.3.2"
 
 # Reduce logging to only warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -3327,6 +3327,10 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 self.handle_peer_sync(data)
             elif path == '/api/leaderboard/display-config':
                 self.handle_update_leaderboard_display_config(data)
+            elif path == '/api/manual-results':
+                self.handle_manual_result(data)
+            elif path == '/api/manual-results/remove':
+                self.handle_remove_manual_result(data)
             else:
                 # Default: handle as lap time submission
                 self.handle_lap_time(data)
@@ -3724,6 +3728,44 @@ class LapTimeHandler(BaseHTTPRequestHandler):
                 'config': load_display_config_for_mirror(),
             })
         except (OSError, ValueError, json.JSONDecodeError) as error:
+            self.send_json_response({'success': False, 'error': str(error)}, 400)
+
+    def handle_manual_result(self, data):
+        """Add or update a manual Top 10 result submitted by the staff iPad."""
+        try:
+            result = save_manual_top10_result(
+                data.get('driver_name'),
+                cars_passed=data.get('cars_passed'),
+                finishing_position=data.get('finishing_position'),
+                lap_time=data.get('lap_time'),
+            )
+            config = load_display_config_for_mirror()
+            self.send_json_response({
+                'success': True,
+                'result': result,
+                'entries': read_manual_top10_entries(config=config),
+            })
+        except (OSError, ValueError, TypeError) as error:
+            self.send_json_response({'success': False, 'error': str(error)}, 400)
+
+    def handle_remove_manual_result(self, data):
+        """Remove one manual Top 10 result submitted by the staff iPad."""
+        try:
+            driver_name = str(data.get('driver_name') or '').strip()
+            removed = remove_cars_passed_result(driver_name)
+            if not removed:
+                self.send_json_response({
+                    'success': False,
+                    'error': f'No manual result found for {driver_name}.',
+                }, 404)
+                return
+            config = load_display_config_for_mirror()
+            self.send_json_response({
+                'success': True,
+                'driver_name': driver_name,
+                'entries': read_manual_top10_entries(config=config),
+            })
+        except (OSError, ValueError, TypeError) as error:
             self.send_json_response({'success': False, 'error': str(error)}, 400)
 
     def handle_leaderboard_page(self):

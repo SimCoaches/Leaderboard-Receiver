@@ -55,6 +55,8 @@ the `ranking_mode` they used. Invalid values fall back to the configured mode.
 **LapTimeHandler** - HTTP request handler for the built-in server. Key endpoints:
 - `/api/queue/join`, `/api/queue/remove`, `/api/queue/assign` - Queue management
 - `/api/session/started`, `/api/session/ended` - Session tracking
+- `/api/manual-results`, `/api/manual-results/remove` - Add/update/remove
+  manually scored Top 10 entries from the Sender staff iPad
 - Default POST: Lap time submission
 
 **DiscoveryResponder** - UDP listener on port 5001 that responds to broadcast discovery requests, allowing simulators to auto-discover the leaderboard server.

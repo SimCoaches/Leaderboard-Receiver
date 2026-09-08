@@ -216,6 +216,56 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertEqual('Taylor Reed', payload['entries'][0]['driver_name'])
         self.assertEqual(21, payload['entries'][0]['cars_passed'])
 
+    def test_staff_ipad_api_controls_and_updates_manual_top10(self):
+        config_path = str(Path(self.temp_dir.name) / 'config.json')
+        server = ThreadingHTTPServer(('127.0.0.1', 0), receiver.LapTimeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        base_url = f'http://127.0.0.1:{server.server_port}'
+
+        def post(path, payload):
+            request = urllib.request.Request(
+                f'{base_url}{path}',
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST',
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return json.load(response)
+
+        with mock.patch.object(receiver, 'get_config_path', return_value=config_path):
+            thread.start()
+            try:
+                settings = post('/api/leaderboard/display-config', {
+                    'ranking_mode': 'cars_passed',
+                    'manual_rank_by': 'finishing_position',
+                    'manual_show_cars_passed': True,
+                    'manual_show_finishing_position': True,
+                    'manual_show_lap_time': True,
+                })
+                result = post('/api/manual-results', {
+                    'driver_name': 'Casey Jones',
+                    'cars_passed': 18,
+                    'finishing_position': 2,
+                    'lap_time': '1:42.500',
+                })
+                with urllib.request.urlopen(
+                        f'{base_url}/api/leaderboard?mode=cars_passed', timeout=5) as response:
+                    board = json.load(response)
+                removed = post('/api/manual-results/remove', {
+                    'driver_name': 'Casey Jones',
+                })
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+        self.assertEqual('finishing_position', settings['config']['manual_rank_by'])
+        self.assertEqual(102.5, result['result']['lap_time'])
+        self.assertEqual('Casey Jones', board['entries'][0]['driver_name'])
+        self.assertEqual(2, board['entries'][0]['finishing_position'])
+        self.assertTrue(removed['success'])
+        self.assertEqual([], removed['entries'])
+
     def test_receiver_version_matches_installer(self):
         installer = (ROOT / 'installer.iss').read_text(encoding='utf-8')
         self.assertIn(f'AppVersion={receiver.APP_VERSION}', installer)
