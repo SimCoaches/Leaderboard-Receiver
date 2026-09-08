@@ -36,6 +36,9 @@ A simple and efficient leaderboard system for sim racing that can receive lap ti
 - The manual leaderboard is always a top 10. Re-entering the same name updates
   its entered values while preserving blank optional values; typing a name and
   choosing **Remove** deletes that participant.
+- Staff can perform the same scoring from Sender's iPad admin portal using
+  **Score Top 10**. The iPad posts directly to Receiver's manual-result API;
+  no simulator telemetry is required.
 - Use **Copy Manual Top 10 URL** to open `/leaderboard?mode=cars_passed` on
   another display. Manual results are stored separately in `cars_passed.csv`;
   simulator lap-time and Nürburgring sector-challenge data are not changed.
