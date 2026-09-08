@@ -100,6 +100,74 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertEqual('Driver 00', board[0]['driver_name'])
         self.assertEqual('Driver 09', board[-1]['driver_name'])
 
+    def test_manual_cars_passed_board_updates_and_ranks_top_10(self):
+        for index in range(12):
+            receiver.save_cars_passed_result(
+                f'Driver {index:02d}',
+                index,
+            )
+
+        # A correction replaces the old value instead of retaining a previous
+        # higher score, which is essential for operator-entered event results.
+        receiver.save_cars_passed_result('driver 11', 3)
+        board = receiver.read_leaderboard_entries(ranking_mode='cars_passed')
+
+        self.assertEqual(10, len(board))
+        self.assertEqual('Driver 10', board[0]['driver_name'])
+        self.assertEqual(10, board[0]['cars_passed'])
+        corrected = next(row for row in board if row['driver_name'].casefold() == 'driver 11')
+        self.assertEqual(3, corrected['cars_passed'])
+        self.assertEqual(len(board), len({row['driver_name'].casefold() for row in board}))
+        self.assertFalse(Path('lap_times.csv').exists())
+        self.assertTrue(receiver.remove_cars_passed_result('DRIVER 10'))
+        self.assertFalse(receiver.remove_cars_passed_result('Missing Driver'))
+        self.assertEqual(
+            'Driver 09',
+            receiver.read_leaderboard_entries(ranking_mode='cars_passed')[0]['driver_name'],
+        )
+
+    def test_manual_cars_passed_columns_match_event_request(self):
+        app = QApplication.instance() or QApplication([])
+        config = dict(receiver.DISPLAY_CONFIG_DEFAULTS)
+        config['ranking_mode'] = 'cars_passed'
+        window = receiver.LeaderboardWindow(config)
+        try:
+            headers, widths = window._column_layout()
+            self.assertEqual(['POSITION', 'NAME', 'CARS PASSED'], headers)
+            self.assertEqual(1728, sum(widths) + 120 + (2 * 40))
+            self.assertEqual(10, window._max_entries())
+            self.assertEqual(2464, window.leaderboard_panel.height())
+            window.update_entries([{'driver_name': 'Jordan Lee', 'cars_passed': 27}])
+            row_labels = window.entry_widgets[0].findChildren(QLabel)
+            self.assertEqual(['1', 'Jordan Lee', '27'], [label.text() for label in row_labels])
+        finally:
+            window.close()
+            app.processEvents()
+
+    def test_manual_cars_passed_browser_endpoint(self):
+        receiver.save_cars_passed_result('Alex Morgan', 14)
+        receiver.save_cars_passed_result('Taylor Reed', 21)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), receiver.LapTimeHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urllib.request.urlopen(
+                    f'http://127.0.0.1:{server.server_port}/api/leaderboard?mode=cars_passed',
+                    timeout=5) as response:
+                payload = json.load(response)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual('cars_passed', payload['ranking_mode'])
+        self.assertEqual('Taylor Reed', payload['entries'][0]['driver_name'])
+        self.assertEqual(21, payload['entries'][0]['cars_passed'])
+
+    def test_receiver_version_matches_installer(self):
+        installer = (ROOT / 'installer.iss').read_text(encoding='utf-8')
+        self.assertIn(f'AppVersion={receiver.APP_VERSION}', installer)
+
     def test_old_csv_migrates_without_losing_distance(self):
         with open('lap_times.csv', 'w', newline='', encoding='utf-8') as handle:
             writer = csv.DictWriter(handle, fieldnames=[
@@ -266,6 +334,8 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
         self.assertIn('const baseWidth = vertical ? 2160 : 1920;', html)
         self.assertIn('const baseHeight = vertical ? 3840 : 1080;', html)
         self.assertIn('displayConfig.vertical_panel_width, 1728', html)
+        self.assertIn("['POSITION', 'NAME', 'CARS PASSED']", html)
+        self.assertIn("pinnedMode === 'cars_passed'", html)
 
 
 if __name__ == '__main__':
