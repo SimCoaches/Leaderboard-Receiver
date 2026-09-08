@@ -244,9 +244,12 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
                 })
                 result = post('/api/manual-results', {
                     'driver_name': 'Casey Jones',
-                    'cars_passed': 18,
-                    'finishing_position': 2,
+                    'cars_passed': 12,
                     'lap_time': '1:42.500',
+                })
+                corrected = post('/api/manual-results', {
+                    'driver_name': 'Casey Jones',
+                    'finishing_position': 5,
                 })
                 with urllib.request.urlopen(
                         f'{base_url}/api/leaderboard?mode=cars_passed', timeout=5) as response:
@@ -261,10 +264,25 @@ class ReceiverReleaseReadinessTests(unittest.TestCase):
 
         self.assertEqual('finishing_position', settings['config']['manual_rank_by'])
         self.assertEqual(102.5, result['result']['lap_time'])
+        self.assertEqual(28, result['result']['finishing_position'])
+        self.assertEqual(35, corrected['result']['cars_passed'])
         self.assertEqual('Casey Jones', board['entries'][0]['driver_name'])
-        self.assertEqual(2, board['entries'][0]['finishing_position'])
+        self.assertEqual(5, board['entries'][0]['finishing_position'])
+        self.assertEqual(35, board['entries'][0]['cars_passed'])
         self.assertTrue(removed['success'])
         self.assertEqual([], removed['entries'])
+
+    def test_nascar_position_pair_rejects_inconsistent_values(self):
+        self.assertEqual(
+            (12, 28),
+            receiver.normalize_nascar_position_pair(12, None),
+        )
+        self.assertEqual(
+            (12, 28),
+            receiver.normalize_nascar_position_pair(None, 28),
+        )
+        with self.assertRaisesRegex(ValueError, 'same result'):
+            receiver.normalize_nascar_position_pair(12, 27)
 
     def test_receiver_version_matches_installer(self):
         installer = (ROOT / 'installer.iss').read_text(encoding='utf-8')

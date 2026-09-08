@@ -1,6 +1,6 @@
 [Setup]
 AppName=Lap Time Receiver
-AppVersion=1.3.2
+AppVersion=1.3.3
 AppPublisher=SimRacing Leaderboard
 AppPublisherURL=https://github.com
 DefaultDirName={autopf}\Lap Time Receiver
